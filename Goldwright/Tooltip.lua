@@ -87,7 +87,7 @@ local function cachedInfo(id)
   if isCached and not isCached(id) then return nil end
   local r = { getInfo(id) }
   if r[1] == nil then return nil end
-  return { vendor = r[11] or 0, bindType = r[14] }
+  return { name = r[1], vendor = r[11] or 0, bindType = r[14] }
 end
 
 local getInstant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
@@ -174,7 +174,9 @@ local function itemModel(link, fallbackID)
   if data then
     lo, hi = lowHigh(key, h.side)
   end
-  m = { id = id, key = key, data = data, anySuffix = anySuffix, info = info, lo = lo, hi = hi }
+  -- The name as the client shows it (sales are recorded by name, from the invoices).
+  local name = link and link:match("|h%[(.-)%]|h")
+  m = { id = id, key = key, data = data, anySuffix = anySuffix, info = info, lo = lo, hi = hi, name = name }
   -- Not in the client's item cache yet: ask again next hover rather than remembering "no vendor price".
   if info or not (C_Item and C_Item.IsItemDataCachedByID) then
     -- Every link is its own entry: keep the cache bounded.
@@ -420,8 +422,11 @@ local function tradeableLines(tt, m, h, expanded)
     -- TT-7 vendor comparison, per unit
     local vendor = m.info and m.info.vendor or 0
     if listed and vendor > 0 and O("ttVendor") then
-      if GW.Net(h.side, here.mv) <= vendor then
-        addLine(tt, string.format(L["Vendor pays %s: more than the auction house"], GW.Money(vendor)), GW.SIGNAL_ORANGE)
+      -- How much more the vendor pays than the auction house nets after its cut (whole copper; a
+      -- difference under 1c isn't worth a line).
+      local more = math.floor(vendor - GW.Net(h.side, here.mv))
+      if more >= 1 then
+        addLine(tt, string.format(L["Vendor pays %s more than AH after its cut"], GW.Money(more)), GW.SIGNAL_ORANGE)
       end
       if here.min and here.min < vendor then
         addLine(
@@ -435,6 +440,10 @@ local function tradeableLines(tt, m, h, expanded)
         )
       end
     end
+    -- your own sales of it (Ledger.lua)
+    local name = m.name or (m.info and m.info.name)
+    local mine = O("ttSales") and GW.LedgerTooltipText and GW.LedgerTooltipText(name)
+    if mine then addLine(tt, mine, GW.GOLD) end
     -- per-house table: market value and units listed
     for _, side in ipairs(SIDES) do
       local d = data[side]

@@ -74,6 +74,11 @@ GW.DEFAULTS = {
   ttBetter = true,
   ttVendor = true,
   ttNoData = false, -- "No auction data yet" line for items we know nothing about
+  ttSales = true, -- "You sold 34 · last 4s 90c each" (expanded view, Ledger.lua)
+  -- sales record (Ledger.lua)
+  saleSound = true, -- a sound when the game says an auction sold
+  mailSummary = true, -- one chat line after new auction mail is read
+  mailButton = true, -- a "Your sales" button beside the mailbox (SalesView.lua)
   expandKey = "SHIFT", -- SHIFT / CTRL / ALT / NONE: hold for the per-house table
   money = "coins", -- "coins" (coin icons, like the backpack) or "letters" (1g 23s)
   -- signals
@@ -662,7 +667,7 @@ function GW.PriceLine(msg)
 end
 
 local HELP =
-  "/gw status · /gw price [item] · /gw sell · /gw auctions · /gw scan · /gw lists · /gw craft · /gw add [item] · /gw config · /gw minimap · /gw welcome · /gw bug"
+  "/gw status · /gw price [item] · /gw sell · /gw auctions · /gw sales · /gw scan · /gw lists · /gw gaps · /gw craft · /gw add [item] · /gw config · /gw minimap · /gw welcome · /gw bug"
 
 -- /gw and /goldwright. No command (or "status") prints the house and pack state; other commands
 -- open tabs and windows defined in later files, when they exist.
@@ -697,8 +702,12 @@ SlashCmdList.GOLDWRIGHT = function(raw)
     GW.Print("%s", GW.PriceLine(rest) or L["Usage: /gw price [item link]"])
   elseif cmd == "sell" or cmd == "cancel" or cmd == "auctions" then
     if GW.OpenTab then GW.OpenTab(cmd == "sell" and "sell" or "cancel") end
+  elseif cmd == "sales" or cmd == "ledger" then
+    if GW.OpenSales then GW.OpenSales() end
   elseif cmd == "lists" or cmd == "shopping" then
     if GW.OpenTab then GW.OpenTab("shopping") end
+  elseif cmd == "gaps" or cmd == "blackwater" then
+    if GW.OpenGaps then GW.OpenGaps() end
   elseif cmd == "add" then
     if not GW.AddToList then return end
     local e, info = GW.AddToList(rest)

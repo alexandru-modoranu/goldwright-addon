@@ -590,6 +590,23 @@ local function cancelBuy()
   sv.buy = nil
 end
 
+--- Saves a Want typed into a list row (blank or 0 clears it). The buy plan depends on Want, so a
+--- quote waiting for Confirm is dropped and the item is checked again (when the auction house is open).
+---@param e GoldwrightShoppingEntry|nil
+---@param text string|nil
+local function setWant(e, text)
+  if not e then return end
+  local n = tonumber(text or "")
+  n = n and n >= 1 and math.floor(n) or nil
+  if n == e.want then return end
+  e.want = n
+  if sv.buy and sv.buy.entry == e then
+    if sv.buy.confirming then return end
+    cancelBuy()
+  end
+  if sv.results[e] then GW.CheckEntry(e) end
+end
+
 --- Tells the player in the tab and in chat (the tab may be closed by now).
 ---@param text string
 ---@param color? number[]
@@ -871,7 +888,7 @@ render = function()
           or (e.max and GW.Money(e.max))
           or "–"
       )
-      row.want:SetText(e.want and tostring(e.want) or "–")
+      if not row.want:HasFocus() then row.want:SetText(e.want and tostring(e.want) or "") end
       local text, color = foundText(e)
       row.found:SetText(text)
       setColor(row.found, color)
@@ -1131,7 +1148,12 @@ local function build(parent)
       tip = L["Rename (or double-click the name)"],
       fn = renameList,
     },
-    { key = "copy", tex = "Interface\\Buttons\\UI-PlusButton-Up", tip = L["Duplicate this list"], fn = copySelected },
+    {
+      key = "copy",
+      tex = "Interface\\Buttons\\UI-PlusButton-Up",
+      tip = L["Duplicate this list"],
+      fn = copySelected,
+    },
     {
       key = "delete",
       tex = "Interface\\Buttons\\UI-GroupLoot-Pass-Up",
@@ -1205,6 +1227,10 @@ local function build(parent)
       GoldwrightDB.listSel = #lists
       render()
     end)
+  end)
+  -- Items worth carrying to or from Blackwater, to add to a list (GapsView.lua).
+  lbtn(L["Blackwater gaps"], 8, 62, 220, true, function()
+    if GW.OpenGaps then GW.OpenGaps() end
   end)
   lbtn(L["Import"], 8, 10, 108, true, function() showIO("import") end)
   lbtn(L["Export"], 120, 10, 108, false, function() showIO("export") end)
@@ -1304,8 +1330,23 @@ local function build(parent)
     row.name:SetWordWrap(false)
     row.max = fs(row, "GameFontHighlightSmall", "LEFT")
     row.max:SetPoint("LEFT", 214, 0)
-    row.want = fs(row, "GameFontHighlightSmall", "LEFT")
-    row.want:SetPoint("LEFT", 314, 0)
+    -- Want is editable in place: Enter or clicking away saves it and checks the item again.
+    row.want = CreateFrame("EditBox", nil, row, "InputBoxTemplate")
+    row.want:SetSize(40, 20)
+    row.want:SetPoint("LEFT", 318, 0)
+    row.want:SetAutoFocus(false)
+    row.want:SetNumeric(true)
+    row.want:SetMaxLetters(5)
+    row.want:SetFontObject("GameFontHighlightSmall")
+    row.want:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+    row.want:SetScript("OnEscapePressed", function(self)
+      self:SetText(row.e and row.e.want and tostring(row.e.want) or "") -- put the saved Want back
+      self:ClearFocus()
+    end)
+    row.want:SetScript("OnEditFocusLost", function(self)
+      setWant(row.e, self:GetText())
+      render()
+    end)
     row.found = fs(row, "GameFontHighlightSmall", "LEFT")
     row.found:SetPoint("LEFT", 364, 0)
     row.found:SetWidth(196)
@@ -1378,6 +1419,11 @@ function GW.ShopView.Show(parent)
   if not view then build(parent) end
   view:Show()
   render()
+end
+
+--- Redraws the Shopping tab when it's open (after a list changed from another window).
+function GW.ShopView.Refresh()
+  if view and view:IsShown() then render() end
 end
 
 --- Hides the Shopping tab, stops a running list and cancels a pending purchase.

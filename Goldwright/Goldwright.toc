@@ -12,7 +12,7 @@
 ## Notes-zhCN: WoW Forever 拍卖行价格。
 ## Notes-zhTW: WoW Forever 拍賣場價格。
 ## Author: Goldwright
-## Version: 0.3.0
+## Version: 0.5.0
 ## SavedVariables: GoldwrightDB, GoldwrightScans
 ## IconTexture: Interface\Icons\INV_Misc_Coin_02
 ## AddonCompartmentFunc: Goldwright_OnAddonCompartmentClick
@@ -43,11 +43,19 @@ SellPanel.lua
 CancelPanel.lua
 Scan.lua
 Shopping.lua
+Gaps.lua
+GapsView.lua
 VendorSupplies.lua
 Vendors.lua
 AuctionMail.lua
+Ledger.lua
+SalesView.lua
+RecipeData.lua
+Recipes.lua
+LevelPlan.lua
 Crafting.lua
 CraftPanel.lua
+LevelView.lua
 BugReport.lua
 Settings.lua
 Launcher.lua

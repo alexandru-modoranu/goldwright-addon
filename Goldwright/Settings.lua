@@ -231,6 +231,11 @@ local function build()
   check(L["Other houses"], "ttOthers")
   check(L["Blackwater pays more"], "ttBetter", L["Only shown with real depth and proven buyers at the other house."])
   check(L["Vendor comparison"], "ttVendor")
+  check(
+    L["Your sales (expanded view)"],
+    "ttSales",
+    L["What you sold of the item, your last price and how much of yours sold, from your auction mail."]
+  )
   check(string.format(L['"%s" for unknown items'], L["No auction data yet"]), "ttNoData")
   choice(
     L["Expanded view key"],
@@ -250,6 +255,13 @@ local function build()
   number(L["Note when above"], "abovePct", 101, 999, L["% of normal"], string.format(L["default %d"], 150))
   choice(L["Default duration"], "duration", { { 3, L["24 Hours"] }, { 2, L["8 Hours"] }, { 1, L["2 Hours"] } })
   check(L["Open Goldwright with the auction house"], "autoShow")
+  check(L["Sound when an auction sells"], "saleSound")
+  check(L["Sales button on the mailbox"], "mailButton")
+  check(
+    L["Mailbox summary in chat"],
+    "mailSummary",
+    L['One line after new auction mail is read, e.g. "Mailbox: 12 sales for 3g 40s · 4 expired".']
+  )
   note(
     L["Key bindings for Post, Cancel next undercut and opening Goldwright: Options › Keybindings › AddOns › Goldwright."],
     20

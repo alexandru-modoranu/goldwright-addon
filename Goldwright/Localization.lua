@@ -54,6 +54,22 @@ local PLURAL_RULES = {
 }
 local function englishRule(n) return n == 1 and 1 or 2 end
 
+--- The translated form of "one|other" that fits the count (not yet formatted).
+---@param n number
+---@param one string
+---@param other string
+---@return string
+local function pluralForm(n, one, other)
+  local key = one .. "|" .. other
+  local forms = {}
+  for form in (rawget(GW.L, key) or key):gmatch("[^|]+") do
+    forms[#forms + 1] = form
+  end
+  local rule = rawget(GW.L, key) and PLURAL_RULES[GW.LOCALE] or englishRule
+  local count = math.abs(math.floor(tonumber(n) or 0))
+  return forms[math.min(rule(count), #forms)] or forms[#forms] or other
+end
+
 --- The form of a text that fits a count, translated: GW.Plural(3, "%d sale", "%d sales") -> "3 sales".
 --- The translation of the key "one|other" lists the language's own forms separated by "|"
 --- (Russian three, Korean and Chinese one); the count is passed to string.format when the chosen
@@ -64,14 +80,17 @@ local function englishRule(n) return n == 1 and 1 or 2 end
 ---@param ... any extra string.format arguments after the count
 ---@return string
 function GW.Plural(n, one, other, ...)
-  local key = one .. "|" .. other
-  local forms = {}
-  for form in (rawget(GW.L, key) or key):gmatch("[^|]+") do
-    forms[#forms + 1] = form
-  end
-  local rule = rawget(GW.L, key) and PLURAL_RULES[GW.LOCALE] or englishRule
-  local count = math.abs(math.floor(tonumber(n) or 0))
-  local form = forms[math.min(rule(count), #forms)] or forms[#forms] or other
+  local form = pluralForm(n, one, other)
   if form:find("%", 1, true) then return string.format(form, n, ...) end
   return form
+end
+
+--- GW.Plural for a count shown with the client's thousands separators: the forms take the count
+--- as %s ("%s unit", "%s units" -> "1,234 units").
+---@param n number the count
+---@param one string English singular with %s
+---@param other string English plural with %s
+---@return string
+function GW.PluralCount(n, one, other)
+  return string.format(pluralForm(n, one, other), GW.Number and GW.Number(n) or tostring(n))
 end

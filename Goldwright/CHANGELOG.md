@@ -1,12 +1,12 @@
 # Goldwright changelog
 
-## 0.3.0
+## 0.5.0
 
-Goldwright speaks your language.
+Level up your professions for the least gold, and see what's worth carrying to Blackwater.
 
-- **Translated:** Goldwright now shows in your game's language: German, French, Spanish (Spain and Latin America), Italian, Portuguese (Brazil), Russian, Korean and Chinese (Simplified and Traditional). These are first translations; if a word sounds wrong in your language, tell us in the Discord and we'll fix it.
-- **Prices in your language:** amounts use your game's own coin letters, and you can type prices with them too (for example `1g 50s 20k` in German), as well as with g, s and c.
-- **Blackwater and the real cut on every client:** Goldwright recognises Blackwater's auction house and learns the auction house cut from your sale mail in every language, not only in English.
-- **Better bug reports:** Goldwright now keeps a record of auction house errors (like "Internal auction error") with what was sent just before and whether Goldwright or the game sent it, and of any Goldwright error. `/gw bug` includes the most recent ones and your game's language, so we can tell quickly whether a problem is ours.
-- **Sell:** when the auction house refuses a post, the message says why (for example "Not enough money").
-- Small fixes: "1 sellable item" and "1 search this minute" no longer say "items" and "searches".
+- **Level up tab:** open a profession and click **Level up** under Goldwright's crafting window for the cheapest route from your skill to 300 at today's prices: what to craft at each step, what to learn first and where (trainer, book or pattern vendor), and everything to buy with a gold total. It plans enough materials to finish each step 49 times in 50, so you shouldn't have to go back for more, uses what's already in your bags and bank first, and moves on when a recipe turns green. **Make shopping list** turns it into a shopping list. Covers Alchemy, Blacksmithing, Enchanting, Engineering, Leatherworking, Tailoring and First Aid. The plan stays as it is until you click **Re-plan with today's prices**.
+- **Blackwater gaps:** a new window (the **Blackwater gaps** button on the Shopping tab, or `/gw gaps`) lists items worth carrying between your faction's auction house and Blackwater. It shows only items with proven buyers where you sell, how many to carry in whole stacks with the bag slots they take, and the profit. **Add** puts one on a "Blackwater run" shopping list with a max price.
+- **Shopping lists:** edit the Want amount right in each row, and the list updates straight away when you add something from another window.
+- **Sell tab:** shows how long your stack should take to sell, and warns when that's longer than the auction lasts.
+- **Tooltip:** when a vendor pays more than the auction house would after its cut, the tooltip says by how much ("Vendor pays 2c more than AH after its cut").
+- Fixed an error in the item tooltip the first time it showed your sales in a session.

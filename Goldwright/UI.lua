@@ -156,6 +156,10 @@ function UI.Window(name, width, height, opts)
     f:SetScript("OnDragStop", f.StopMovingOrSizing)
   end
   f:EnableMouse(true)
+  -- A click anywhere on the window brings it in front of the others on its strata (like the
+  -- game's own windows); a new window opens in front.
+  f:SetToplevel(true)
+  f:HookScript("OnShow", function(self) self:Raise() end)
   GW.CloseOnEscape(f)
   return f
 end

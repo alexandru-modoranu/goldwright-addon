@@ -122,7 +122,7 @@ GW.activeTab = "sell"
 ---------------------------------------------------------------------------
 local UI = GW.UI
 local fs, setColor, qualityColor = UI.FontString, UI.SetColor, UI.QualityColor
-local GREY = UI.GREY
+local GREY, WHITE = UI.GREY, UI.WHITE
 
 --- The house you are selling at: the open auction house (Blackwater in neutral towns, else your
 --- faction's; GW.AuctionSide in Scan.lua). Reference prices, the cut and hints all follow it.
@@ -441,8 +441,16 @@ local function recalc()
   panel.r4L:SetText(L["Deposit now (back when it sells)"])
   panel.r4R:SetText(deposit and GW.Money(deposit) or "?")
 
-  -- market check line (SELL-7 / SELL-8): against the 7-day normal, else today's typical price
+  -- Time to sell at this price: what's listed at or below it plus ours, at the house's sales per day.
   local here = packFor(g.itemID)
+  local hours = GW.TimeToSell(state.stats and state.stats.sorted, unit, qty, (GW.SellRate(here)))
+  local auctionHours = GW.DURATION_HOURS[state.duration]
+  local tooSlow = hours and auctionHours and hours > auctionHours
+  panel.r5L:SetText(L["Time to sell at this price"])
+  panel.r5R:SetText(hours and GW.TimeToSellText(hours) or "?")
+  setColor(panel.r5R, tooSlow and GW.SIGNAL_ORANGE or WHITE)
+
+  -- market check line (SELL-7 / SELL-8): against the 7-day normal, else today's typical price
   local normal = here and (here.avg7 or here.avg30)
   local ref, messages = normal, PRICE_CHECK.normal
   if not ref then
@@ -465,6 +473,14 @@ local function recalc()
   if rounded then
     warn, warnColor =
       string.format(L["Gear posts in whole silver: this posts at %s."], GW.Money(unit)) .. " " .. warn, GW.SIGNAL_ORANGE
+  end
+  if tooSlow and warn == "" then
+    warn, warnColor =
+      string.format(
+        L["At this price it may not all sell within the %d h auction: a lower price or fewer at a time."],
+        auctionHours
+      ),
+      GW.SIGNAL_ORANGE
   end
   panel.warn:SetText(warn)
   setColor(panel.warn, warnColor)
@@ -1125,6 +1141,12 @@ local function createPanel()
   gear:SetScript("OnClick", function()
     if GW.OpenSettings then GW.OpenSettings() end
   end)
+  -- Your sales record has its own window (SalesView.lua): it doesn't need the auction house.
+  local sales = UI.Button(panel, L["Sales"], 90, 22, function()
+    if GW.OpenSales then GW.OpenSales() end
+  end)
+  sales:SetPoint("RIGHT", gear, "LEFT", -4, 0)
+  panel.salesButton = sales
 
   local inset = panel.Inset or panel
   if panel.Inset then
@@ -1394,7 +1416,7 @@ local function createPanel()
   panel.warn:SetWidth(316)
 
   local y = -252
-  for i = 1, 4 do
+  for i = 1, 5 do
     local l = fs(col3, i == 3 and "GameFontHighlight" or "GameFontHighlightSmall", "LEFT")
     l:SetPoint("TOPLEFT", 0, y)
     local r = fs(col3, i == 3 and "GameFontNormal" or "GameFontHighlightSmall", "RIGHT")

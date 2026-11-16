@@ -11,6 +11,36 @@ local L = GW.L
 ---@return number copper whole silver, at least 100
 function GW.SilverFloor(copper) return math.max(100, math.floor(copper / 100) * 100) end
 
+--- Hours of the Sell tab's auction durations (index = its duration setting: 2h, 8h, 24h).
+GW.DURATION_HOURS = { 2, 8, 24 }
+
+--- About how long until a listing at `price` sells: everything listed at or below that price
+--- (other players' listings; same-price ones count as ahead, to be safe) plus your own quantity,
+--- at the house's sales per day.
+---@param listings GoldwrightListing[]|nil the live listings ({price, qty, own})
+---@param price number|nil your unit price in copper
+---@param qty number|nil units you post (default 1)
+---@param perDay number|nil sales per day at this house (GW.SellRate)
+---@return number|nil hours nil when the price or the sales rate is unknown
+---@return number ahead units listed at or below the price
+function GW.TimeToSell(listings, price, qty, perDay)
+  if not (perDay and perDay > 0 and price and price > 0) then return nil, 0 end
+  local ahead = 0
+  for _, l in ipairs(listings or {}) do
+    if not l.own and l.price and l.price <= price then ahead = ahead + (l.qty or 0) end
+  end
+  return (ahead + (qty or 1)) / perDay * 24, ahead
+end
+
+--- "under an hour", "about 5 h", "about 2.5 days".
+---@param hours number
+---@return string
+function GW.TimeToSellText(hours)
+  if hours < 1 then return L["under an hour"] end
+  if hours < 36 then return string.format(L["about %d h"], math.floor(hours + 0.5)) end
+  return string.format(L["about %s days"], GW.Decimal(math.floor(hours / 24 * 10 + 0.5) / 10))
+end
+
 --- SELL-4: the price to post against the cheapest real listing, per the undercut setting.
 --- Matching your own cheapest listing never undercuts yourself.
 ---@param cheapest number|nil cheapest real unit price in copper

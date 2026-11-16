@@ -25,6 +25,12 @@ local MONTH_DAY = {
   L["Nov %d"],
   L["Dec %d"],
 }
+
+--- A short date in the client's language: "Nov 9" (German "9. Nov.").
+---@param t number time (seconds)
+---@return string
+function GW.DateLabel(t) return string.format(MONTH_DAY[tonumber(date("%m", t))], tonumber(date("%d", t))) end
+
 local UI = GW.UI
 local GREY = UI.GREY
 

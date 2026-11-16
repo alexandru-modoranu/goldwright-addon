@@ -10,7 +10,8 @@
 local _, GW = ...
 local L = GW.L
 
-local W, H = 680, 540
+local W, H = 780, 540
+GW.CRAFT_INNER_W = W - 16 -- the inset width the Level up tab (LevelView.lua) lays out in
 local ROWS, ROW_H = 15, 28
 local LIST_W = 300
 local MAX_MATS = 8 -- material rows shown (Forever recipes seen in game use at most 4)
@@ -353,13 +354,47 @@ local function renderStatus()
   end
 end
 
+--- The tab the window shows: "recipes" (default) or "level" (Level up, LevelView.lua).
+---@return string
+local function currentTab() return GoldwrightDB and GoldwrightDB.craftTab == "level" and "level" or "recipes" end
+
 --- Redraws everything.
 local function render()
   if not panel then return end
   UI.SetTitle(panel, "Goldwright · " .. (GW.ProfessionName() or L["Crafting"]))
+  renderStatus()
+  if currentTab() == "level" then return end
   renderList()
   renderDetail()
-  renderStatus()
+end
+
+--- Switches the window between the recipe list and the Level up plan. The recipe buttons (sorting,
+--- unlearned) only belong to the list; the house switch and Settings stay.
+---@param key string "recipes" or "level"
+local function showTab(key)
+  GoldwrightDB.craftTab = key == "level" and "level" or nil
+  local level = key == "level"
+  for _, b in ipairs(panel.tabs) do
+    if b.key == key then
+      b:LockHighlight()
+    else
+      b:UnlockHighlight()
+    end
+  end
+  panel.recipesView:SetShown(not level)
+  for _, b in ipairs({ panel.sortProfit, panel.sortName, panel.unlearned }) do
+    b:SetShown(not level)
+  end
+  if GW.LevelView then
+    if level then
+      GW.LevelView.Show(panel.Inset or panel)
+    else
+      GW.LevelView.Hide()
+    end
+  end
+end
+GW.ShowCraftTab = function(key)
+  if panel then showTab(key) end
 end
 
 --- Reads the recipes again, keeps the selection when it is still listed (else selects the first) and
@@ -369,6 +404,12 @@ local function refresh()
   state.rows, state.hidden = GW.CraftRows(sortBy(), showUnlearned())
   if not selectedRow() then state.sel = state.rows[1] and state.rows[1].recipe.id or nil end
   render()
+end
+
+--- On show: the remembered tab, filled in.
+local function onShow()
+  refresh()
+  showTab(currentTab())
 end
 GW.RefreshCraftPanel = refresh
 
@@ -444,6 +485,16 @@ local function createPanel()
   end
   local view = CreateFrame("Frame", nil, inset)
   view:SetAllPoints()
+  panel.recipesView = view
+
+  -- Tabs under the window, like the game's own windows: the recipe list and the Level up plan.
+  panel.tabs = {}
+  for i, t in ipairs({ { key = "recipes", label = L["Recipes"] }, { key = "level", label = L["Level up"] } }) do
+    local b = UI.Button(panel, t.label, 110, 24, function() showTab(t.key) end)
+    b.key = t.key
+    b:SetPoint("TOPLEFT", panel, "BOTTOMLEFT", 12 + (i - 1) * 114, 2)
+    panel.tabs[i] = b
+  end
 
   -- recipe list (CRAFT-1) -----------------------------------------------------
   panel.rows = {}
@@ -569,7 +620,7 @@ local function createPanel()
   panel.status = fs(panel, "GameFontDisableSmall", "LEFT")
   panel.status:SetPoint("BOTTOMLEFT", 14, 10)
 
-  panel:SetScript("OnShow", refresh)
+  panel:SetScript("OnShow", onShow)
   panel:SetScript("OnDragStop", function(self) onDragStop(self) end)
   GW.OnOptionsChanged(function()
     if panel:IsShown() then refresh() end
@@ -637,7 +688,7 @@ local function showPanel()
   if not panel then createPanel() end
   anchorToProfessions()
   if panel:IsShown() then
-    refresh()
+    onShow() -- another profession opened: the Level up tab plans for it
   else
     panel:Show() -- OnShow refreshes
   end
