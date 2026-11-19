@@ -223,7 +223,7 @@ events:SetScript("OnEvent", function(_, event, a1, a2)
     if GW.AuctionHouseOpen and GW.AuctionHouseOpen() and GW.IsAuctionError and GW.IsAuctionError(a1, a2) then
       GW.RecordError(string.format('game message "%s" after %s', tostring(a2), trailText()))
     end
-  elseif type(a1) == "string" and a1:find("^Goldwright") then -- ADDON_ACTION_BLOCKED / _FORBIDDEN
+  elseif GW.ReadableText(a1) and a1:find("^Goldwright") then -- ADDON_ACTION_BLOCKED / _FORBIDDEN
     GW.RecordError(string.format("%s: %s called %s", event, a1, tostring(a2)))
   end
 end)

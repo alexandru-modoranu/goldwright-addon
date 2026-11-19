@@ -109,6 +109,17 @@ function GW.Opt(key)
   return v
 end
 
+--- Whether an event argument is text Goldwright may read. The game can pass "secret" strings (in
+--- combat, or chat it protects): type() says "string", but reading one from add-on code is an error
+--- ("attempt to index local 'msg' (a secret string value…)"). Those are skipped.
+---@param v any
+---@return boolean
+function GW.ReadableText(v)
+  if type(v) ~= "string" then return false end
+  if issecretvalue and issecretvalue(v) then return false end
+  return true
+end
+
 GW.optionListeners = {}
 
 --- Registers a function to call after any setting changes.

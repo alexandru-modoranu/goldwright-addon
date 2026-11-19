@@ -904,7 +904,7 @@ local POST_ERRORS = { ERR_NOT_ENOUGH_MONEY = true, ERR_ITEM_NOT_FOUND = true, ER
 ---@param message any its text
 ---@return boolean
 function GW.IsAuctionError(messageType, message)
-  if type(message) ~= "string" then return false end
+  if not GW.ReadableText(message) then return false end
   local name = GetGameMessageInfo and type(messageType) == "number" and GetGameMessageInfo(messageType)
   if type(name) == "string" then return name:find("^ERR_AUCTION") ~= nil or POST_ERRORS[name] == true end
   -- Without the error's name, compare the text with the game's own auction and money messages.

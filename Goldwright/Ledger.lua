@@ -622,8 +622,11 @@ GW.session = { sold = 0 }
 ---@param msg string|nil
 ---@return boolean sold the message was a sale
 function GW.OnSaleMessage(msg)
+  if not GW.ReadableText(msg) then return false end
   local pattern = GW.TemplatePattern(ERR_AUCTION_SOLD_S or "A buyer has been found for your auction of %s.")
-  if type(msg) ~= "string" or not pattern or not msg:match(pattern) then return false end
+  -- pcall as well: a protected message the check above can't recognise is skipped, not an error.
+  local ok, hit = pcall(string.match, msg, pattern or "")
+  if not pattern or not ok or not hit then return false end
   GW.session.sold = GW.session.sold + 1
   if GW.Opt("saleSound") and PlaySound then
     pcall(PlaySound, SOUNDKIT and SOUNDKIT.AUCTION_WINDOW_CLOSE or 5275, "Master")
