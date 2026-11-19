@@ -256,6 +256,11 @@ local function build()
   number(L["Note when above"], "abovePct", 101, 999, L["% of normal"], string.format(L["default %d"], 150))
   choice(L["Default duration"], "duration", { { 3, L["24 Hours"] }, { 2, L["8 Hours"] }, { 1, L["2 Hours"] } })
   check(L["Open Goldwright with the auction house"], "autoShow")
+  check(
+    L["Open the Crafting panel with your professions"],
+    "craftAutoShow",
+    L["When this is off, open it with /gw craft while a profession window is open."]
+  )
   check(L["Sound when an auction sells"], "saleSound")
   check(L["Sales button on the mailbox"], "mailButton")
   check(
@@ -313,7 +318,7 @@ local function build()
     if pack then
       packLine:SetText(
         string.format(
-          L["Goldwright Data: %s %s · snapshot %s"],
+          L["Goldwright Data (%s) %s · snapshot %s"],
           h.packKey,
           pack.version or "",
           GW.Age(pack.snapshotAt)
@@ -323,10 +328,9 @@ local function build()
     else
       packLine:SetText(
         string.format(
-          L["No data pack loaded for %s %s. Install Goldwright Data: %s in your add-on manager."],
+          L["No data pack loaded for %s %s. Install Goldwright Data in your add-on manager (CurseForge or Wago)."],
           h.region,
-          h.ruleset,
-          h.region
+          h.ruleset
         )
       )
       setColor(packLine, GW.SIGNAL_ORANGE)

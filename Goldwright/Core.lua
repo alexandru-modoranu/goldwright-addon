@@ -91,6 +91,7 @@ GW.DEFAULTS = {
   undercutPct = 5,
   duration = 3, -- 1 = 2 h, 2 = 8 h, 3 = 24 h
   autoShow = true, -- open Goldwright with the auction house
+  craftAutoShow = true, -- open the Crafting panel with a profession window (off: /gw craft opens it)
   elvSkin = true, -- with ElvUI running, Goldwright's windows take its look (UI.Skin)
   -- bait detection (live listings in game; the data pack uses the server's fixed rule)
   bait = true,
@@ -566,7 +567,7 @@ function GW.Net(side, price) return price * (1 - (GW.CUT[side] or 0.05)) end
 --- Prints one chat line saying why there are no server prices (ONB-2 / ONB-3).
 function GW.PrintPackProblem()
   local h = GW.House()
-  local want = "Goldwright Data: " .. h.region
+  local want = "Goldwright Data" -- one data add-on for every region since 0.4 (CurseForge, Wago)
   if GW.packStatus == "schema" then
     GW.Print(
       L["Your Goldwright data pack doesn't match this version of Goldwright. Update both in your add-on manager."]
@@ -587,7 +588,11 @@ function GW.PrintPackProblem()
       want
     )
   else
-    GW.Print(L["No data pack for %s %s. Install %s for prices in tooltips."], h.region, h.ruleset, want)
+    GW.Print(
+      L["No data pack for %s %s. Install Goldwright Data from CurseForge or Wago for prices in tooltips."],
+      h.region,
+      h.ruleset
+    )
   end
 end
 
@@ -679,7 +684,7 @@ function GW.PriceLine(msg)
 end
 
 local HELP =
-  "/gw status · /gw price [item] · /gw sell · /gw auctions · /gw sales · /gw scan · /gw lists · /gw gaps · /gw craft · /gw add [item] · /gw config · /gw minimap · /gw welcome · /gw bug"
+  "/gw status · /gw price [item] · /gw sell · /gw auctions · /gw sales · /gw scan · /gw lists · /gw watch · /gw gaps · /gw craft · /gw add [item] · /gw config · /gw minimap · /gw welcome · /gw bug"
 
 -- /gw and /goldwright. No command (or "status") prints the house and pack state; other commands
 -- open tabs and windows defined in later files, when they exist.
@@ -718,6 +723,13 @@ SlashCmdList.GOLDWRIGHT = function(raw)
     if GW.OpenSales then GW.OpenSales() end
   elseif cmd == "lists" or cmd == "shopping" then
     if GW.OpenTab then GW.OpenTab("shopping") end
+  elseif cmd == "watch" then
+    -- watched shopping lists against your newest data, anywhere (Shopping.lua)
+    if GW.WatchedCount and GW.WatchedCount() == 0 then
+      GW.Print("%s", L["No list is watched yet: click the spyglass next to a list."])
+    elseif GW.WatchCheck then
+      GW.WatchCheck(true)
+    end
   elseif cmd == "gaps" or cmd == "blackwater" then
     if GW.OpenGaps then GW.OpenGaps() end
   elseif cmd == "add" then
@@ -755,7 +767,7 @@ SlashCmdList.GOLDWRIGHT = function(raw)
   end
 end
 
---- Makes Escape close `frame` without UISpecialFrames: adding names to that Blizzard table taints
+--- Makes Escape close `frame` (or, when `frame.goBack()` returns true, go back one page) without UISpecialFrames: adding names to that Blizzard table taints
 --- the Escape key's game-menu path on this client ("blocked from an action only available to the
 --- Blizzard UI" on every Esc, 2026-11-10). The frame takes Escape itself and lets every other key
 --- through. Keyboard propagation can't change in combat, so in combat Escape just passes through.
@@ -767,7 +779,8 @@ function GW.CloseOnEscape(frame)
     if InCombatLockdown() then return end
     if key == "ESCAPE" then
       self:SetPropagateKeyboardInput(false)
-      self:Hide()
+      -- A window with pages (the Shopping tab) goes back one page first.
+      if not (self.goBack and self.goBack()) then self:Hide() end
       C_Timer.After(0, function()
         if not InCombatLockdown() then self:SetPropagateKeyboardInput(true) end
       end)

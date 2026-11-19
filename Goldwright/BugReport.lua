@@ -173,6 +173,13 @@ function GW.ShowBugReport()
       win.box:HighlightText()
     end)
     again:SetPoint("RIGHT", close, "LEFT", -8, 0)
+    -- what you'd be sharing, before you paste it anywhere public
+    win.privacy = UI.FontString(win, "GameFontDisableSmall", "LEFT")
+    win.privacy:SetPoint("BOTTOMLEFT", 18, 18)
+    win.privacy:SetWidth(300)
+    win.privacy:SetText(
+      L["The report includes your realm and recent auction activity (items and prices), never character names."]
+    )
   end
   win.box:SetText(GW.BugReport())
   win:Show()

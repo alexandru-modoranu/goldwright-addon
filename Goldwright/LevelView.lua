@@ -303,8 +303,7 @@ local function makeShoppingList()
   end
   at = at or (#all + 1)
   all[at] = list
-  GoldwrightDB.listSel = at
-  GW.ShopView.Refresh()
+  GW.ShopView.OpenList(at)
   GW.Print(string.format(L['Shopping list "%s" ready: run it at the auction house, Shopping tab.'], list.name))
 end
 

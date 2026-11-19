@@ -69,7 +69,7 @@ function Gamepad.Add(frame)
   frame.SmartNavigationCloseHandler = function()
     if Gamepad.editing then
       Gamepad.EndEdit(true)
-    else
+    elseif not (frame.goBack and frame.goBack()) then -- a window with pages goes back one page first
       frame:Hide()
     end
     return true
@@ -340,6 +340,7 @@ if Gamepad.Available() then
         end
       end
       Gamepad.Schedule()
+      if GW.ShopView then GW.ShopView.Refresh() end -- its list tools are dimmed for the mouse only
     end
   end)
 end

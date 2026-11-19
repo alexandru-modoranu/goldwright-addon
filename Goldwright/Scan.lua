@@ -12,7 +12,7 @@ local L = GW.L
 local ROWS_PER_TICK = 4000 -- rows read per frame (172k rows in ~2.5 s, verified)
 local ITEMS_PER_TICK = 600 -- items priced per frame
 local TIMEOUT = 90 -- no data after this many seconds means the server ignored the request
-local KEEP_HISTORY = 3
+local KEEP_HISTORY = 10 -- recent scans kept and listed on the Scan tab (as many as fit above its note)
 GW.SCAN_COOLDOWN = 15 * 60
 
 -- Q2 (open): which auction houses are Blackwater. Until confirmed, the neutral towns count, found by
@@ -235,6 +235,7 @@ priceStep = guarded(function()
   GW.ResetCache()
   finish("saved")
   GW.ApplyOptions() -- open panels redraw with the new prices
+  if GW.WatchIfNew then GW.WatchIfNew() end -- watched shopping lists: anything below max now?
 end)
 
 --- Reading phase: adds up quantity per item and unit price, ROWS_PER_TICK rows per frame, then starts
@@ -453,9 +454,14 @@ render = function()
   view.histHeader:SetShown(#hist > 0)
 end
 
---- Redraws once a second while the tab is shown (countdown and waiting time).
+--- Redraws once a second while the tab is shown (countdown and waiting time). One loop at a time:
+--- showing the tab again while the loop is still going (back within a second) doesn't start another.
+local ticking = false
 local function tick()
-  if not (view and view:IsShown()) then return end
+  if not (view and view:IsShown()) then
+    ticking = false
+    return
+  end
   render()
   C_Timer.After(1, tick)
 end
@@ -535,7 +541,12 @@ GW.ScanView = {}
 function GW.ScanView.Show(parent)
   if not view then build(parent) end
   view:Show()
-  tick()
+  if ticking then
+    render()
+  else
+    ticking = true
+    tick()
+  end
 end
 
 --- Hides the tab (a running scan keeps going).

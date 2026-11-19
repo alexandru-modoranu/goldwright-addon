@@ -165,7 +165,6 @@ function GW.AddGapToList(g, qty)
   entry.name = GW.ShopItemName(g.item) or entry.name or string.format(GW.L["item %d"], g.item)
   entry.want = qty or g.sure
   entry.max, entry.maxPct = g.max, nil
-  GoldwrightDB.listSel = at
-  GW.ShopView.Refresh()
+  GW.ShopView.OpenList(at)
   return list
 end

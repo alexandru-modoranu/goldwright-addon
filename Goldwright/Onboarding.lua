@@ -23,13 +23,13 @@ function GW.PackStatusText()
     local days = GW.PackAgeDays()
     if days and days > GW.STALE_DAYS then
       return string.format(
-        L["Goldwright Data: %s · installed, but %s old: update it in your add-on manager"],
+        L["Goldwright Data (%s) · installed, but %s old: update it in your add-on manager"],
         h.region,
         GW.Plural(math.floor(days), "%d day", "%d days")
       ),
         false
     end
-    return string.format(L["Goldwright Data: %s · installed, snapshot %s"], h.region, GW.Age(pack.snapshotAt)), true
+    return string.format(L["Goldwright Data (%s) · installed, snapshot %s"], h.region, GW.Age(pack.snapshotAt)), true
   end
   if GW.packStatus == "disabled" then
     return string.format(L["Installed but disabled: enable GoldwrightData_%s in the AddOns list"], h.packKey), false
@@ -39,16 +39,14 @@ function GW.PackStatusText()
   end
   if GW.otherPacks and #GW.otherPacks > 0 then
     return string.format(
-      L["You have %s, but you're playing on %s %s: install Goldwright Data: %s"],
+      L["You have %s, but you're playing on %s %s: update Goldwright Data in your add-on manager"],
       table.concat(GW.otherPacks, ", "),
       h.region,
-      h.ruleset,
-      h.region
+      h.ruleset
     ),
       false
   end
-  return string.format(L['Not installed: search "Goldwright Data" in your add-on manager and install %s'], h.region),
-    false
+  return L['Not installed: search "Goldwright Data" in your add-on manager (CurseForge or Wago) and install it'], false
 end
 
 --- A label / value row in the welcome panel.

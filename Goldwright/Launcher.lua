@@ -51,7 +51,6 @@ local function refreshPopup()
   else
     popup.scan:SetText(string.format(L["%s · available"], last))
   end
-  popup.open:SetEnabled(GW.AuctionHouseOpen and GW.AuctionHouseOpen() and true or false)
 end
 
 --- Builds the launcher popup (hidden).
@@ -101,16 +100,9 @@ local function createPopup()
   end
   popup.open = linkButton(L["Open Goldwright"], -112, function()
     popup:Hide()
-    GW.OpenTab("sell")
+    -- away from the auction house the window opens on your shopping lists
+    GW.OpenTab(GW.AuctionHouseOpen and GW.AuctionHouseOpen() and "sell" or "shopping")
   end)
-  popup.open:SetMotionScriptsWhileDisabled(true)
-  popup.open:SetScript("OnEnter", function(self)
-    if self:IsEnabled() then return end
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip:SetText(L["Open the auction house first"])
-    GameTooltip:Show()
-  end)
-  popup.open:SetScript("OnLeave", function() GameTooltip:Hide() end)
   linkButton(L["Your sales"], -138, function()
     popup:Hide()
     GW.OpenSales()

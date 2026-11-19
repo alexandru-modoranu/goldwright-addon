@@ -14,6 +14,9 @@ local L = GW.L
 GW.CUT_ASSUMED = { A = GW.CUT.A, H = GW.CUT.H, N = GW.CUT.N }
 --- Invoices kept per house for the estimate.
 local MAX_SALES = 50
+--- How long a counted invoice is remembered (so it isn't counted again while it's still in the
+--- mailbox). Mail can stay in the mailbox for at most 30 days, so a day more is always enough.
+GW.SEEN_MAIL_DAYS = 31
 --- Smallest sale that counts, in copper: from 2s a 1c rounding error moves the rate by at most 0.5%
 --- (a 10c sale with a 1c cut would fit anything from 10% to 19%).
 GW.CUT_MIN_SALE = 200
@@ -89,7 +92,7 @@ function GW.CutRate(sales)
 end
 
 --- The learned data, created on first use.
----@return { seen: table<string, boolean>, sales: table<string, { bid: number, cut: number }[]> } data
+---@return { seen: table<string, number>, sales: table<string, { bid: number, cut: number }[]> } data
 local function data()
   GoldwrightDB = GoldwrightDB or {}
   local d = GoldwrightDB.ahCut or {}
@@ -97,6 +100,24 @@ local function data()
   d.sales = d.sales or {}
   GoldwrightDB.ahCut = d
   return d
+end
+
+--- Forgets counted invoices older than GW.SEEN_MAIL_DAYS (by when they were first counted). Entries
+--- from before 0.7.0 have no time (true): they get today's, so they go 31 days from now.
+---@param d table GoldwrightDB.ahCut
+---@return number dropped
+local function pruneSeen(d)
+  local now, dropped = GetServerTime(), 0
+  local oldest = now - GW.SEEN_MAIL_DAYS * 86400
+  for key, at in pairs(d.seen) do
+    if type(at) ~= "number" then
+      d.seen[key] = now
+    elseif at < oldest then
+      d.seen[key] = nil
+      dropped = dropped + 1
+    end
+  end
+  return dropped
 end
 
 --- Applies the measured rates to GW.CUT (houses without sales keep the assumed rate).
@@ -112,6 +133,7 @@ end
 function GW.LearnFromMail()
   if not (GetInboxNumItems and GetInboxInvoiceInfo and GetInboxHeaderInfo) then return 0 end
   local d, added = data(), 0
+  pruneSeen(d)
   for i = 1, GetInboxNumItems() or 0 do
     local invoiceType, itemName, _, bid, _, deposit, cut = GetInboxInvoiceInfo(i)
     if invoiceType == "seller" and (bid or 0) >= GW.CUT_MIN_SALE and cut then
@@ -120,7 +142,7 @@ function GW.LearnFromMail()
       -- One key per sale (the money in the mail drops to 0 once taken, so it is left out).
       local key = table.concat({ tostring(sender), tostring(subject), tostring(itemName), bid, cut, deposit or 0 }, "|")
       if side and not d.seen[key] then
-        d.seen[key] = true
+        d.seen[key] = GetServerTime()
         local list = d.sales[side] or {}
         list[#list + 1] = { bid = bid, cut = cut }
         while #list > MAX_SALES do

@@ -1066,9 +1066,23 @@ GW.PostSelected = postSelected
 ---------------------------------------------------------------------------
 -- tabs
 ---------------------------------------------------------------------------
---- Switches the panel to a tab and shows or hides each tab's view.
+--- Tabs that work away from the auction house (the rest are greyed out there, with a tooltip).
+local ANYWHERE = { shopping = true }
+
+--- Enables each tab button: all at the auction house, only ANYWHERE tabs elsewhere.
+local function updateTabs()
+  local atAH = GW.AuctionHouseOpen and GW.AuctionHouseOpen()
+  for _, b in ipairs(panel.tabButtons) do
+    if not b.soon then b:SetEnabled(atAH or ANYWHERE[b.key] or false) end
+  end
+end
+
+--- Switches the panel to a tab and shows or hides each tab's view. Away from the auction house only
+--- the ANYWHERE tabs open.
 ---@param key string "sell", "cancel", "shopping" or "scan"
 local function showTab(key)
+  if not ANYWHERE[key] and not (GW.AuctionHouseOpen and GW.AuctionHouseOpen()) then key = "shopping" end
+  updateTabs()
   GW.activeTab = key
   for _, b in ipairs(panel.tabButtons) do
     UI.SetSelected(b, b.key == key)
@@ -1123,6 +1137,7 @@ local function createPanel()
     else
       b:SetPoint("LEFT", prev, "RIGHT", 4, 0)
     end
+    b.soon = t.soon
     if t.soon then
       b:Disable()
       if b.SetMotionScriptsWhileDisabled then b:SetMotionScriptsWhileDisabled(true) end
@@ -1134,6 +1149,15 @@ local function createPanel()
       b:SetScript("OnLeave", function() GameTooltip:Hide() end)
     else
       b:SetScript("OnClick", function() showTab(t.key) end)
+      -- greyed out away from the auction house: say why
+      if b.SetMotionScriptsWhileDisabled then b:SetMotionScriptsWhileDisabled(true) end
+      b:SetScript("OnEnter", function(self)
+        if self:IsEnabled() then return end
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:SetText(L["Open the auction house to use this tab."])
+        GameTooltip:Show()
+      end)
+      b:SetScript("OnLeave", function() GameTooltip:Hide() end)
     end
     panel.tabButtons[i] = b
     prev = b
@@ -1528,12 +1552,8 @@ end
 local function ahOpen() return AuctionHouseFrame and AuctionHouseFrame:IsShown() end
 GW.AuctionHouseOpen = ahOpen
 
---- Shows or hides the panel; only at the auction house.
+--- Shows or hides the panel (away from the auction house: on the Shopping tab).
 function GW.ToggleSellPanel()
-  if not ahOpen() then
-    GW.Print(L["Open the auction house first."])
-    return
-  end
   if not panel then createPanel() end
   if panel:IsShown() then
     panel:Hide()
@@ -1543,10 +1563,10 @@ function GW.ToggleSellPanel()
   end
 end
 
---- Opens the panel on a tab; only at the auction house.
+--- Opens the panel on a tab. Away from the auction house only Shopping opens (the window centred).
 ---@param key string "sell", "cancel", "shopping" or "scan"
 function GW.OpenTab(key)
-  if not ahOpen() then
+  if key ~= "shopping" and not ahOpen() then
     GW.Print(L["Open the auction house first."])
     return
   end
@@ -1604,7 +1624,14 @@ for _, e in ipairs({
 end
 ev:SetScript("OnEvent", function(_, event, arg1, arg2)
   if event == "AUCTION_HOUSE_SHOW" then
-    if GW.Opt("autoShow") then
+    if panel and panel:IsShown() then
+      -- opened away from the auction house (Shopping): dock it and turn the other tabs on
+      C_Timer.After(0.2, function()
+        anchorToAuctionHouse()
+        updateTabs()
+        if GW.ShopView then GW.ShopView.Refresh() end
+      end)
+    elseif GW.Opt("autoShow") then
       C_Timer.After(0.2, function()
         if not panel then createPanel() end
         anchorToAuctionHouse()

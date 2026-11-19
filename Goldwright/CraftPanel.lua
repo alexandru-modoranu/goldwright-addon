@@ -6,7 +6,7 @@
 ---
 --- Read-only and taint-safe: the panel is our own window anchored beside ProfessionsFrame. It never
 --- hooks or changes Blizzard's frames or recipe rows, assigns no Blizzard globals and calls no
---- crafting or protected functions. It opens on TRADE_SKILL_SHOW and closes on TRADE_SKILL_CLOSE.
+--- crafting or protected functions. It opens on TRADE_SKILL_SHOW (setting craftAutoShow; else /gw craft) and closes on TRADE_SKILL_CLOSE.
 local _, GW = ...
 local L = GW.L
 
@@ -719,10 +719,11 @@ end
 ev:SetScript("OnEvent", function(_, event)
   if event == "TRADE_SKILL_SHOW" then
     state.open = true
-    -- A moment later, so Blizzard's window is shown and placed first (like the Sell panel).
-    C_Timer.After(0.1, function()
+    -- A moment later, so Blizzard's window is shown and placed first (like the Sell panel). With
+    -- the setting off it waits for /gw craft.
+    if GW.Opt("craftAutoShow") then C_Timer.After(0.1, function()
       if state.open then showPanel() end
-    end)
+    end) end
   elseif event == "TRADE_SKILL_CLOSE" then
     state.open = false
     state.token = state.token + 1
