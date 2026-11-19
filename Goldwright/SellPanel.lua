@@ -352,6 +352,16 @@ local function setUnitPrice(c)
   state.settingPrice = false
 end
 
+--- Puts a price the player chose in the price box (the controller's steps, Gamepad.Adjustable):
+--- like a typed one, it is "your own price", not a strategy's.
+---@param c number copper
+local function setOwnPrice(c)
+  state.strategy = nil
+  state.typed = true
+  setUnitPrice(c) -- the price box's change handler recalculates the receipt
+  panel.why:SetText(L["Your own price."])
+end
+
 --- The price that will be posted: what's in the box, rounded down to whole silver for gear
 --- (gear posts in whole silver only).
 ---@return number unit copper per item
@@ -1371,6 +1381,29 @@ local function createPanel()
     end)
   end
 
+  -- With a controller: A on a coin box, then left / right changes the price by 1 gold, silver or
+  -- copper (held: faster), A keeps it, B puts the old price back (Gamepad.Adjustable).
+  if GW.Gamepad then
+    local coins = panel.money
+        and {
+          { _G.GoldwrightSellPriceGold, 10000 },
+          { _G.GoldwrightSellPriceSilver, 100 },
+          { _G.GoldwrightSellPriceCopper, 1 },
+        }
+      or { { panel.copperBox, 1 } }
+    for _, c in ipairs(coins) do
+      if c[1] then
+        GW.Gamepad.Adjustable(c[1], {
+          get = getUnitPrice,
+          set = setOwnPrice,
+          step = c[2],
+          min = function() return 1 end,
+          enabled = function() return state.sel ~= nil end,
+        })
+      end
+    end
+  end
+
   local ql = fs(col3, "GameFontNormalSmall", "LEFT")
   ql:SetPoint("TOPLEFT", 0, -162)
   ql:SetText(L["Quantity"])
@@ -1382,6 +1415,16 @@ local function createPanel()
   panel.qty:SetMaxLetters(5)
   panel.qty:SetScript("OnTextChanged", recalc)
   panel.qty:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+  if GW.Gamepad then
+    GW.Gamepad.Adjustable(panel.qty, {
+      get = function() return tonumber(panel.qty:GetText()) or 1 end,
+      set = function(n) panel.qty:SetText(tostring(n)) end,
+      step = 1,
+      min = function() return 1 end,
+      max = function() return state.sel and state.sel.count or 1 end,
+      enabled = function() return state.sel ~= nil and panel.qty:IsEnabled() end,
+    })
+  end
   panel.allButton = UI.Button(col3, L["All"], 44, 22)
   panel.allButton:SetPoint("LEFT", panel.qty, "RIGHT", 6, 0)
   panel.allButton:SetScript("OnClick", function()

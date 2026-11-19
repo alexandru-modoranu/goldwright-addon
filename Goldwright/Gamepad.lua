@@ -19,6 +19,7 @@
 --- The next-frame pass runs from an OnUpdate of our own, not C_Timer (GW2_UI found a C_Timer
 --- started from hooks tainted the gamepad UI). Nothing here runs with mouse and keyboard.
 local _, GW = ...
+local L = GW.L
 
 ---@class GoldwrightGamepad
 ---@field windows table[] { frame, listed } per window, in the order they were added
@@ -63,11 +64,18 @@ function Gamepad.Add(frame)
   Gamepad.byFrame[frame] = rec
   frame:HookScript("OnShow", Gamepad.Schedule)
   frame:HookScript("OnHide", Gamepad.Schedule)
-  -- B on the window: hide it ourselves, so the game never clicks our CloseButton (tainted).
+  -- B on the window: undo a number being changed (Gamepad.Adjustable), else hide the window
+  -- ourselves, so the game never clicks our CloseButton (tainted).
   frame.SmartNavigationCloseHandler = function()
-    frame:Hide()
+    if Gamepad.editing then
+      Gamepad.EndEdit(true)
+    else
+      frame:Hide()
+    end
     return true
   end
+  -- The triggers moved the controller to another window: a number being changed is kept.
+  frame.UnfocusGamepad = function() Gamepad.EndEdit(false) end
   Gamepad.Schedule()
   return "added"
 end
@@ -111,6 +119,144 @@ function Gamepad.LeaveForCombat()
     end
   end
   return left
+end
+
+---------------------------------------------------------------------------
+-- Changing a number with the controller
+---------------------------------------------------------------------------
+-- The game has no on-screen keyboard, and A on a text box doesn't change it. Blizzard's own
+-- windows change a value with left / right on the selected control (stack split, sliders);
+-- Improved Forever's auction screen does the same, held = faster. Here: A on an adjustable box
+-- starts changing it, left / right step it (held: faster), A again keeps the value, B puts the old
+-- one back. While a box is being changed the D-pad's four directions are bound to buttons of ours
+-- (SetOverrideBindingClick on our own frame, never Blizzard's binding groups) and released the
+-- moment it ends: A or B, the window losing the controller (LT / RT) or hiding, combat, or a switch
+-- to the mouse. A goes through Blizzard's own click (the box's OnSmartNavClick), so A is never ours.
+
+--- Repeats while left / right is held: the first after HOLD_DELAY seconds, then every
+--- REPEAT_EVERY; after STEP_UP repeats the step is 10 times bigger, after STEP_UP2 100 times.
+local HOLD_DELAY, REPEAT_EVERY, STEP_UP, STEP_UP2 = 0.35, 0.08, 8, 24
+
+local bindOwner -- frame the D-pad bindings belong to (cleared all at once)
+local held -- { dir, elapsed, repeats } while left or right is down
+
+--- One step of the box being changed, `dir` -1 or 1, times `mult`, kept within its bounds.
+local function step(dir, mult)
+  local e = Gamepad.editing
+  if not e then return end
+  local spec = e.spec
+  local lo = spec.min and spec.min() or 0
+  local hi = spec.max and spec.max() or math.huge
+  local n = (spec.get() or 0) + dir * spec.step * (mult or 1)
+  if n < lo then n = lo end
+  if n > hi then n = hi end
+  if n ~= spec.get() then spec.set(n) end
+end
+
+--- The buttons the D-pad is bound to while a box is being changed.
+local function padButton(name, dir)
+  local b = CreateFrame("Button", name, UIParent)
+  b:RegisterForClicks("AnyDown", "AnyUp")
+  b:SetScript("OnClick", function(_, _, down)
+    if not dir then return end -- up / down: swallowed, the cursor stays on the box
+    if down then
+      held = { dir = dir, elapsed = 0, repeats = 0 }
+      step(dir, 1)
+    else
+      held = nil
+    end
+  end)
+  return b
+end
+
+local function ensureButtons()
+  if bindOwner then return end
+  bindOwner = CreateFrame("Frame")
+  padButton("GoldwrightPadLess", -1)
+  padButton("GoldwrightPadMore", 1)
+  padButton("GoldwrightPadStay", nil)
+  local ticker = CreateFrame("Frame", nil, bindOwner)
+  ticker:SetScript("OnUpdate", function(_, elapsed)
+    if not held then return end
+    held.elapsed = held.elapsed + elapsed
+    local wait = held.repeats == 0 and HOLD_DELAY or REPEAT_EVERY
+    if held.elapsed < wait then return end
+    held.elapsed = 0
+    held.repeats = held.repeats + 1
+    step(held.dir, held.repeats > STEP_UP2 and 100 or held.repeats > STEP_UP and 10 or 1)
+  end)
+end
+
+--- Shows how to change the box (a tooltip on it) and lights it.
+local function showEditing(box, on)
+  if not box.gwEditGlow then
+    local t = box:CreateTexture(nil, "OVERLAY")
+    t:SetPoint("TOPLEFT", -4, 2)
+    t:SetPoint("BOTTOMRIGHT", 2, -2)
+    t:SetColorTexture(GW.GOLD[1], GW.GOLD[2], GW.GOLD[3], 0.22)
+    box.gwEditGlow = t
+  end
+  box.gwEditGlow:SetShown(on)
+  if on then
+    GameTooltip:SetOwner(box, "ANCHOR_TOP")
+    GameTooltip:SetText(L["Left / right: change it (hold for faster)"], 1, 1, 1)
+    GameTooltip:AddLine(L["A: done · B: undo"], 0.8, 0.8, 0.8)
+    GameTooltip:Show()
+  elseif GameTooltip:GetOwner() == box then
+    GameTooltip:Hide()
+  end
+end
+
+--- Starts changing `box` with the controller (A on it).
+---@param box table
+---@return boolean started
+function Gamepad.StartEdit(box)
+  local spec = box.gwAdjust
+  if not spec or not Gamepad.on or Gamepad.combat or InCombatLockdown() then return false end
+  if spec.enabled and not spec.enabled() then return false end
+  Gamepad.EndEdit(false)
+  ensureButtons()
+  Gamepad.editing = { box = box, spec = spec, before = spec.get() }
+  SetOverrideBindingClick(bindOwner, true, "PADDLEFT", "GoldwrightPadLess", "LeftButton")
+  SetOverrideBindingClick(bindOwner, true, "PADDRIGHT", "GoldwrightPadMore", "LeftButton")
+  SetOverrideBindingClick(bindOwner, true, "PADDUP", "GoldwrightPadStay", "LeftButton")
+  SetOverrideBindingClick(bindOwner, true, "PADDDOWN", "GoldwrightPadStay", "LeftButton")
+  showEditing(box, true)
+  return true
+end
+
+--- Stops changing the box: keeps the value, or with `undo` puts the one from before back. The
+--- D-pad goes back to the game's cursor. Does nothing when no box is being changed.
+---@param undo? boolean
+function Gamepad.EndEdit(undo)
+  local e = Gamepad.editing
+  if not e then return end
+  Gamepad.editing = nil
+  held = nil
+  if bindOwner and not InCombatLockdown() then ClearOverrideBindings(bindOwner) end
+  showEditing(e.box, false)
+  if undo and e.spec.get() ~= e.before then e.spec.set(e.before) end
+end
+
+--- Lets the controller change a number box: A starts and ends changing it, left / right step it.
+--- With mouse and keyboard the box is typed into as before.
+---@param box table EditBox
+---@param spec { get: fun(): number, set: fun(n: number), step: number, min?: fun(): number, max?: fun(): number, enabled?: fun(): boolean }
+---@return table box
+function Gamepad.Adjustable(box, spec)
+  if not Gamepad.Available() then return box end
+  box.gwAdjust = spec
+  box.OnSmartNavClick = function(self)
+    if Gamepad.editing and Gamepad.editing.box == self then
+      Gamepad.EndEdit(false)
+    else
+      Gamepad.StartEdit(self)
+    end
+  end
+  box:HookScript("OnHide", function(self)
+    if Gamepad.editing and Gamepad.editing.box == self then Gamepad.EndEdit(false) end
+  end)
+  return box
 end
 
 --- What the controller support knows, one line (for /gw gamepad).
@@ -164,6 +310,7 @@ if Gamepad.Available() then
       Gamepad.Schedule()
     elseif event == "PLAYER_REGEN_DISABLED" then
       Gamepad.combat = true
+      Gamepad.EndEdit(false) -- bindings can't change in combat: give the D-pad back first
       Gamepad.LeaveForCombat()
     elseif event == "PLAYER_REGEN_ENABLED" then
       Gamepad.combat = false
@@ -173,11 +320,13 @@ if Gamepad.Available() then
       local combatType = E.AddOnRestrictionType and E.AddOnRestrictionType.Combat
       local activating = E.AddOnRestrictionState and E.AddOnRestrictionState.Activating
       if combatType ~= nil and a1 == combatType and a2 == activating then
+        Gamepad.EndEdit(false)
         Gamepad.LeaveForCombat()
       else
         Gamepad.Schedule()
       end
     elseif event == "INPUT_DEVICE_INTERFACE_TRANSITION" then
+      Gamepad.EndEdit(false)
       local types = Enum and Enum.InputDeviceInterfaceType
       if types and types.Gamepad ~= nil then
         Gamepad.on = a1 == types.Gamepad
