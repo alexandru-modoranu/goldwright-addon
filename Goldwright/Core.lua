@@ -91,6 +91,7 @@ GW.DEFAULTS = {
   undercutPct = 5,
   duration = 3, -- 1 = 2 h, 2 = 8 h, 3 = 24 h
   autoShow = true, -- open Goldwright with the auction house
+  elvSkin = true, -- with ElvUI running, Goldwright's windows take its look (UI.Skin)
   -- bait detection (live listings in game; the data pack uses the server's fixed rule)
   bait = true,
   baitShare = 1,
@@ -741,6 +742,8 @@ SlashCmdList.GOLDWRIGHT = function(raw)
     if GW.SetMinimapShown then GW.SetMinimapShown(not GW.MinimapShown()) end
   elseif cmd == "welcome" then
     if GW.ShowWelcome then GW.ShowWelcome() end
+  elseif cmd == "gamepad" or cmd == "controller" then
+    GW.Print("%s", GW.Gamepad and GW.Gamepad.Status() or "Gamepad: not loaded.")
   elseif cmd == "autoshow" then
     GW.SetOpt("autoShow", not GW.Opt("autoShow"))
     GW.Print(

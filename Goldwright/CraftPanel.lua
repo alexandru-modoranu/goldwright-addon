@@ -375,11 +375,7 @@ local function showTab(key)
   GoldwrightDB.craftTab = key == "level" and "level" or nil
   local level = key == "level"
   for _, b in ipairs(panel.tabs) do
-    if b.key == key then
-      b:LockHighlight()
-    else
-      b:UnlockHighlight()
-    end
+    UI.SetSelected(b, b.key == key)
   end
   panel.recipesView:SetShown(not level)
   for _, b in ipairs({ panel.sortProfit, panel.sortName, panel.unlearned }) do
@@ -490,7 +486,7 @@ local function createPanel()
   -- Tabs under the window, like the game's own windows: the recipe list and the Level up plan.
   panel.tabs = {}
   for i, t in ipairs({ { key = "recipes", label = L["Recipes"] }, { key = "level", label = L["Level up"] } }) do
-    local b = UI.Button(panel, t.label, 110, 24, function() showTab(t.key) end)
+    local b = UI.TabButton(panel, t.label, 110, 24, function() showTab(t.key) end)
     b.key = t.key
     b:SetPoint("TOPLEFT", panel, "BOTTOMLEFT", 12 + (i - 1) * 114, 2)
     panel.tabs[i] = b

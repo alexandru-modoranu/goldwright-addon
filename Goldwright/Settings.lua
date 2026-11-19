@@ -50,7 +50,7 @@ end
 ---@param tip? string tooltip text
 ---@return table checkButton
 local function check(label, key, tip)
-  local cb = CreateFrame("CheckButton", nil, content, "UICheckButtonTemplate")
+  local cb = UI.NewCheckButton(content)
   cb:SetSize(24, 24)
   cb:SetPoint("TOPLEFT", 16, Y)
   local text = cb.Text or cb.text
@@ -86,7 +86,7 @@ local function choice(label, key, options, onChange)
   local buttons = {}
   local x = 220
   for _, o in ipairs(options) do
-    local b = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+    local b = UI.NewButton(content)
     b:SetText(o[2])
     b:SetSize(math.max(64, (b:GetFontString() and b:GetFontString():GetStringWidth() or 40) + 24), 22)
     b:SetPoint("TOPLEFT", x, Y)
@@ -121,7 +121,7 @@ local function number(label, key, min, max, unit, tip)
   local l = fs(content, "GameFontHighlight", "LEFT")
   l:SetPoint("TOPLEFT", 20, Y - 4)
   l:SetText(label)
-  local box = CreateFrame("EditBox", nil, content, "InputBoxTemplate")
+  local box = UI.NewEditBox(content)
   box:SetSize(44, 22)
   box:SetPoint("TOPLEFT", 226, Y)
   box:SetAutoFocus(false)
@@ -200,6 +200,7 @@ local function build()
   local scroll
   local ok = pcall(function() scroll = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate") end)
   if not ok or not scroll then scroll = CreateFrame("ScrollFrame", nil, frame, "ScrollFrameTemplate") end
+  UI.Skin("scrollbar", scroll.ScrollBar)
   scroll:SetPoint("TOPLEFT", 0, -8)
   scroll:SetPoint("BOTTOMRIGHT", -28, 8)
   content = CreateFrame("Frame", nil, scroll)
@@ -284,6 +285,14 @@ local function build()
     if GW.SetMinimapShown then GW.SetMinimapShown(self:GetChecked() and true or false) end
   end)
   table.insert(controls, function() mm:SetChecked(GW.MinimapShown and GW.MinimapShown() or false) end)
+  -- Only with ElvUI installed: Goldwright's windows take ElvUI's look (UI.Skin in UI.lua).
+  if type(ElvUI) == "table" then
+    check(
+      L["Match ElvUI's look"],
+      "elvSkin",
+      L["Goldwright's windows, buttons and boxes use ElvUI's style. Takes effect after /reload."]
+    )
+  end
 
   heading(L["Data"])
   local house = fs(content, "GameFontHighlight", "LEFT")
@@ -338,7 +347,7 @@ local function build()
   local rb = {}
   local x = 220
   for _, o in ipairs(rules) do
-    local b = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+    local b = UI.NewButton(content)
     b:SetText(o[2])
     b:SetSize(64, 22)
     b:SetPoint("TOPLEFT", x, Y)

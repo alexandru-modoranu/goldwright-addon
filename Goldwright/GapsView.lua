@@ -47,13 +47,8 @@ local function render()
   local homeName = GW.HOUSE_NAMES[home] or ""
   window.toN:SetText(string.format(L["Buy at %s, sell at Blackwater"], homeName))
   window.fromN:SetText(string.format(L["Buy at Blackwater, sell at %s"], homeName))
-  if state.dir == "toN" then
-    window.toN:LockHighlight()
-    window.fromN:UnlockHighlight()
-  else
-    window.fromN:LockHighlight()
-    window.toN:UnlockHighlight()
-  end
+  UI.SetSelected(window.toN, state.dir == "toN")
+  UI.SetSelected(window.fromN, state.dir ~= "toN")
   for i, row in ipairs(window.rows) do
     local g = state.rows[i + state.offset]
     row.g = g
@@ -95,13 +90,13 @@ local function create()
   window = UI.Window("GoldwrightGapsFrame", W, H, { title = "Goldwright · " .. L["Blackwater gaps"], movable = true })
   window:SetPoint("CENTER")
 
-  window.toN = UI.Button(window, "", 260, 22, function()
+  window.toN = UI.TabButton(window, "", 260, 22, function()
     state.dir = "toN"
     load()
     render()
   end)
   window.toN:SetPoint("TOPLEFT", 14, -30)
-  window.fromN = UI.Button(window, "", 260, 22, function()
+  window.fromN = UI.TabButton(window, "", 260, 22, function()
     state.dir = "fromN"
     load()
     render()

@@ -78,11 +78,7 @@ end
 render = function()
   if not (view and view:IsShown()) then return end
   for _, b in ipairs(view.periodButtons) do
-    if b.days == period then
-      b:LockHighlight()
-    else
-      b:UnlockHighlight()
-    end
+    UI.SetSelected(b, b.days == period)
   end
   local all = GW.LedgerEvents(nil)
   view.empty:SetShown(#all == 0)
@@ -222,7 +218,7 @@ local function build(parent)
   view.periodButtons = {}
   local prev
   for i, days in ipairs(PERIODS) do
-    local b = UI.Button(view, GW.Plural(days, "%d day", "%d days"), 80, 22, function()
+    local b = UI.TabButton(view, GW.Plural(days, "%d day", "%d days"), 80, 22, function()
       period = days
       render()
     end)

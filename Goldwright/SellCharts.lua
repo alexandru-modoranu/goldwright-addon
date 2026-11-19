@@ -309,11 +309,7 @@ local function drawHistory(itemID)
     c.below:SetText(string.format(L["%s—|r 30-day average %s"], hex(GW.SIGNAL_ORANGE), GW.Money(avg)))
   end
   for _, b in ipairs(c.toggles) do
-    if b.days == c.days then
-      b:LockHighlight()
-    else
-      b:UnlockHighlight()
-    end
+    UI.SetSelected(b, b.days == c.days)
   end
   finish(c)
 end
@@ -399,7 +395,7 @@ function Charts.Create(col2)
   hist.extras = { hist.xFirst, hist.xLast, hist.below }
   hist.toggles = {}
   for i, days in ipairs({ 7, 30 }) do
-    local b = CreateFrame("Button", nil, col2, "UIPanelButtonTemplate")
+    local b = UI.NewTabButton(col2)
     b:SetSize(32, 16)
     b:SetPoint("TOPLEFT", CW - 66 + (i - 1) * 34, TOP + 2)
     b:SetNormalFontObject("GameFontHighlightSmall")

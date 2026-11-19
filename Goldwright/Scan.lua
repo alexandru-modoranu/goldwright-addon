@@ -353,8 +353,8 @@ local function statusText()
       return L["Waiting for the server…"],
         string.format(
           run.early
-              and L["%d s · usually about 18 s · keep the auction house open · requested before the 15 minutes were up, so the server may ignore it"]
-            or L["%d s · usually about 18 s · keep the auction house open"],
+              and L["%d s · usually 30–60 s · keep the auction house open · requested before the 15 minutes were up, so the server may ignore it"]
+            or L["%d s · usually 30–60 s · keep the auction house open"],
           math.floor(GetTime() - run.started)
         ),
         0,
@@ -483,7 +483,7 @@ local function build(parent)
   bg:SetAllPoints()
   bg:SetColorTexture(1, 1, 1, 0.08)
 
-  view.start = CreateFrame("Button", nil, view, "UIPanelButtonTemplate")
+  view.start = UI.NewButton(view)
   view.start:SetSize(240, 32)
   view.start:SetPoint("TOPLEFT", 40, -146)
   view.start:SetScript("OnClick", function() GW.StartScan(false) end)

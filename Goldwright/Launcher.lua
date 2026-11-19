@@ -71,6 +71,7 @@ local function createPopup()
     })
     popup:SetBackdropColor(0.06, 0.06, 0.08, 0.96)
   end
+  UI.Skin("frame", popup) -- after SetBackdrop: ElvUI's look replaces the backdrop
   popup:EnableMouse(true)
   GW.CloseOnEscape(popup)
 
@@ -78,7 +79,7 @@ local function createPopup()
   title:SetPoint("TOPLEFT", 14, -12)
   title:SetText("Goldwright")
   setColor(title, GW.GOLD)
-  local close = CreateFrame("Button", nil, popup, "UIPanelCloseButton")
+  local close = UI.NewCloseButton(popup)
   close:SetSize(24, 24)
   close:SetPoint("TOPRIGHT", -2, -2)
 
@@ -120,7 +121,7 @@ local function createPopup()
   end)
 
   -- The game can't open web links: a selectable box to copy the address from.
-  local web = CreateFrame("EditBox", nil, popup, "InputBoxTemplate")
+  local web = UI.NewEditBox(popup)
   web:SetSize(210, 20)
   web:SetPoint("TOPLEFT", 20, -194)
   web:SetAutoFocus(false)

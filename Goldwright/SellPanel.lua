@@ -840,11 +840,7 @@ end
 local function setDuration(idx)
   state.duration = idx
   for _, b in ipairs(panel.durButtons) do
-    if b.idx == idx then
-      b:LockHighlight()
-    else
-      b:UnlockHighlight()
-    end
+    UI.SetSelected(b, b.idx == idx)
   end
 end
 
@@ -1065,11 +1061,7 @@ GW.PostSelected = postSelected
 local function showTab(key)
   GW.activeTab = key
   for _, b in ipairs(panel.tabButtons) do
-    if b.key == key then
-      b:LockHighlight()
-    else
-      b:UnlockHighlight()
-    end
+    UI.SetSelected(b, b.key == key)
   end
   panel.sellView:SetShown(key == "sell")
   if GW.CancelView then
@@ -1114,7 +1106,7 @@ local function createPanel()
   panel.tabButtons = {}
   local prev
   for i, t in ipairs(TABS) do
-    local b = UI.Button(panel, t.label, t.key == "cancel" and 110 or 90, 22)
+    local b = UI.TabButton(panel, t.label, t.key == "cancel" and 110 or 90, 22)
     b.key = t.key
     if i == 1 then
       b:SetPoint("TOPLEFT", 14, -30)
@@ -1322,7 +1314,7 @@ local function createPanel()
 
   panel.stratButtons = {}
   for i, st in ipairs(STRATEGIES) do
-    local b = CreateFrame("Button", nil, col3, "UIPanelButtonTemplate")
+    local b = UI.NewButton(col3)
     b:SetSize(100, 40)
     b:SetPoint("TOPLEFT", (i - 1) * 106, -22)
     b.key, b.label = st.key, st.label
@@ -1350,6 +1342,7 @@ local function createPanel()
   pl:SetText(L["Price per item (or type your own)"])
   if MoneyInputFrame_SetCopper and MoneyInputFrame_GetCopper then
     panel.money = CreateFrame("Frame", "GoldwrightSellPrice", col3, "MoneyInputFrameTemplate")
+    UI.SkinMoney("GoldwrightSellPrice")
     panel.money:SetPoint("TOPLEFT", 4, -132)
     if MoneyInputFrame_SetOnValueChangedFunc then
       MoneyInputFrame_SetOnValueChangedFunc(panel.money, function()
@@ -1365,7 +1358,7 @@ local function createPanel()
       end)
     end
   else
-    panel.copperBox = CreateFrame("EditBox", nil, col3, "InputBoxTemplate")
+    panel.copperBox = UI.NewEditBox(col3)
     panel.copperBox:SetSize(120, 22)
     panel.copperBox:SetPoint("TOPLEFT", 6, -132)
     panel.copperBox:SetAutoFocus(false)
@@ -1381,7 +1374,7 @@ local function createPanel()
   local ql = fs(col3, "GameFontNormalSmall", "LEFT")
   ql:SetPoint("TOPLEFT", 0, -162)
   ql:SetText(L["Quantity"])
-  panel.qty = CreateFrame("EditBox", nil, col3, "InputBoxTemplate")
+  panel.qty = UI.NewEditBox(col3)
   panel.qty:SetSize(50, 22)
   panel.qty:SetPoint("TOPLEFT", 6, -178)
   panel.qty:SetAutoFocus(false)
@@ -1400,7 +1393,7 @@ local function createPanel()
   dl:SetText(L["Duration"])
   panel.durButtons = {}
   for i, d in ipairs(DURATIONS) do
-    local b = UI.Button(col3, d.label, 50, 22)
+    local b = UI.TabButton(col3, d.label, 50, 22)
     b.idx = d.idx
     b:SetPoint("TOPLEFT", 150 + (i - 1) * 54, -178)
     b:SetScript("OnClick", function()

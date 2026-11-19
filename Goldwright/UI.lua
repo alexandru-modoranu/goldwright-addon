@@ -65,6 +65,20 @@ function UI.Header(parent, text, x, y)
   return h
 end
 
+--- Blizzard template widgets, each styled by UI.Skin (Skin.lua) as it is made. The caller sizes,
+--- labels and places them. Every Goldwright button, text box, close button and check box comes
+--- from here, UI.Button or UI.Window, so the template names live in one place.
+---@param parent table frame to create it on
+---@return table widget
+function UI.NewButton(parent) return UI.Skin("button", CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")) end
+--- A button that works as a tab or a toggle (UI.SetSelected shows which one is chosen).
+function UI.NewTabButton(parent) return UI.Skin("tab", CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")) end
+function UI.NewEditBox(parent) return UI.Skin("editbox", CreateFrame("EditBox", nil, parent, "InputBoxTemplate")) end
+function UI.NewCloseButton(parent) return UI.Skin("close", CreateFrame("Button", nil, parent, "UIPanelCloseButton")) end
+function UI.NewCheckButton(parent)
+  return UI.Skin("check", CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate"))
+end
+
 --- A standard red button (UIPanelButtonTemplate). The caller places it.
 ---@param parent table frame to create it on
 ---@param label string button text
@@ -73,7 +87,22 @@ end
 ---@param onClick? function OnClick script
 ---@return table button the new button
 function UI.Button(parent, label, width, height, onClick)
-  local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+  local b = UI.NewButton(parent)
+  b:SetSize(width, height)
+  b:SetText(label)
+  if onClick then b:SetScript("OnClick", onClick) end
+  return b
+end
+
+--- UI.Button for a tab or a toggle: the same button, styled as a tab in another add-on's look.
+---@param parent table frame to create it on
+---@param label string button text
+---@param width number in pixels
+---@param height number in pixels
+---@param onClick? function OnClick script
+---@return table button the new button
+function UI.TabButton(parent, label, width, height, onClick)
+  local b = UI.NewTabButton(parent)
   b:SetSize(width, height)
   b:SetText(label)
   if onClick then b:SetScript("OnClick", onClick) end
@@ -148,6 +177,8 @@ function UI.Window(name, width, height, opts)
   f:SetFrameStrata(opts.strata or "HIGH")
   if ButtonFrameTemplate_HidePortrait then ButtonFrameTemplate_HidePortrait(f) end
   if ButtonFrameTemplate_HideButtonBar then ButtonFrameTemplate_HideButtonBar(f) end
+  -- A look (Skin.lua) strips the window's own textures, so it is styled before anything is drawn on it.
+  UI.Skin("window", f)
   if opts.title then UI.SetTitle(f, opts.title) end
   if opts.movable then
     f:SetMovable(true)
@@ -161,6 +192,8 @@ function UI.Window(name, width, height, opts)
   f:SetToplevel(true)
   f:HookScript("OnShow", function(self) self:Raise() end)
   GW.CloseOnEscape(f)
+  -- In the game's controller mode the window joins its window list (Gamepad.lua).
+  if GW.Gamepad then GW.Gamepad.Add(f) end
   return f
 end
 
@@ -188,6 +221,7 @@ function UI.TextArea(parent, boxWidth)
   local scroll = CreateFrame("ScrollFrame", nil, area, "UIPanelScrollFrameTemplate")
   scroll:SetPoint("TOPLEFT", 8, -8)
   scroll:SetPoint("BOTTOMRIGHT", -28, 8)
+  UI.Skin("scrollbar", scroll.ScrollBar)
   local box = CreateFrame("EditBox", nil, scroll)
   box:SetMultiLine(true)
   box:SetFontObject("ChatFontNormal")
