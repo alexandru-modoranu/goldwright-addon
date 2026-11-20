@@ -1,5 +1,9 @@
 # Goldwright changelog
 
+## 0.7.3 (unreleased)
+
+- **Fixed:** the Sell and Auctions tabs showed items that don't stack (books, recipes, bags, gear) far too cheap when several were listed at the same price. ([#5](https://github.com/goldwrightapp/goldwright-addon/issues/5))
+
 ## 0.7.2
 
 Better at spotting bait, so the Sell tab doesn't suggest dumping your item, and random-suffix gear keeps its price after a scan.

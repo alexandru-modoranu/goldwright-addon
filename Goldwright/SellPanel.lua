@@ -694,9 +694,9 @@ function GW.CollectSearchResults(itemID, itemKey)
   local ni = itemKey and (C_AuctionHouse.GetNumItemSearchResults(itemKey) or 0) or 0
   for i = 1, ni do
     local r = C_AuctionHouse.GetItemSearchResultInfo(itemKey, i)
+    -- buyoutAmount is the price of each auction in the row; quantity is the number of auctions
     if r and r.buyoutAmount and (r.quantity or 0) > 0 then
-      list[#list + 1] =
-        { price = math.floor(r.buyoutAmount / r.quantity + 0.5), qty = r.quantity, own = r.containsOwnerItem }
+      list[#list + 1] = { price = r.buyoutAmount, qty = r.quantity, own = r.containsOwnerItem }
     end
   end
   return list, #list > 0 and "item" or nil, nc, ni
