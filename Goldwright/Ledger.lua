@@ -569,10 +569,10 @@ function GW.LedgerItems(days)
   return list
 end
 
---- The tooltip line for an item you've sold or tried to sell (last LEDGER_DAYS days), or nil.
+--- What you sold or tried to sell of an item in the last LEDGER_DAYS days, for the tooltip, or nil.
 ---@param name string|nil item name
----@return string|nil
-function GW.LedgerTooltipText(name)
+---@return { sold: number, unsold: number, returns: number, lastUnit: number }|nil
+function GW.LedgerTooltipInfo(name)
   if not name then return nil end
   if not byName then
     -- Built in a local first: reading the record can tidy it (GW.PruneLedger), which clears byName.
@@ -582,17 +582,7 @@ function GW.LedgerTooltipText(name)
     end
     byName = built
   end
-  local x = byName[name]
-  if not x then return nil end
-  if x.sold == 0 then
-    return GW.Plural(x.returns, "You listed it %d time, none sold", "You listed it %d times, none sold")
-  end
-  return string.format(
-    L["You sold %s · last %s each · %d%% of yours sold"],
-    GW.Number(x.sold),
-    GW.Money(x.lastUnit),
-    math.floor(x.rate * 100 + 0.5)
-  )
+  return byName[name]
 end
 
 --- Monthly totals of events older than LEDGER_DAYS, newest month first.

@@ -66,11 +66,11 @@ function GW.Print(msg, ...) print("|cffe0ac3aGoldwright|r: " .. string.format(ms
 ---------------------------------------------------------------------------
 GW.DEFAULTS = {
   -- tooltip (TT-2..TT-7)
-  ttMarket = true,
   ttNow = true,
   ttNormal = true,
   ttTrend = true,
-  ttOthers = true,
+  ttOtherFaction = false, -- the other faction's house in tooltips (most players can't get items there)
+  ttBlackwater = true, -- Blackwater in tooltips
   ttBetter = true,
   ttVendor = true,
   ttNoData = false, -- "No auction data yet" line for items we know nothing about
@@ -179,15 +179,46 @@ local COINS = {
 -- The game's own coin letters in the client's language (German "g s k"), else English.
 local SYMBOLS = { g = GOLD_AMOUNT_SYMBOL or "g", s = SILVER_AMOUNT_SYMBOL or "s", c = COPPER_AMOUNT_SYMBOL or "c" }
 
+-- An empty (fully transparent) image: the room of one digit in front of a one-digit coin.
+local SPACER = "Interface\\AddOns\\Goldwright\\Media\\Spacer"
+local digitWidth
+
+--- The width of one digit in tooltip text, measured once (0 when it can't be measured).
+---@return number
+local function oneDigit()
+  if digitWidth == nil then
+    digitWidth = 0
+    local fs = GameTooltip
+      and GameTooltip.CreateFontString
+      and GameTooltip:CreateFontString(nil, "ARTWORK", "GameTooltipText")
+    if fs then
+      fs:SetText("0")
+      digitWidth = math.floor((fs:GetStringWidth() or 0) + 0.5)
+      fs:SetText("")
+      fs:Hide()
+    end
+  end
+  return digitWidth
+end
+
 --- Formats copper as "1g 23s 47c" (or with coin icons, per the `money` setting), dropping zero units.
+--- With `column`, silver and copper after a bigger coin take two digits of room ("1s  9c" lines up
+--- under "1s 40c"), for amounts right-aligned in a column.
 ---@param copper number|nil amount in copper (rounded; nil = 0)
+---@param column boolean|nil pad one-digit coins after a bigger coin
 ---@return string text
-function GW.Money(copper)
+function GW.Money(copper, column)
   copper = math.floor((copper or 0) + 0.5)
   local g, s, c = math.floor(copper / 10000), math.floor((copper % 10000) / 100), copper % 100
   local icons = GW.Opt("money") == "coins"
-  local function unit(n, u) return n .. (icons and COINS[u] or SYMBOLS[u]) end
   local parts = {}
+  local function unit(n, u)
+    local pad = ""
+    if column and #parts > 0 and type(n) == "number" and n < 10 and oneDigit() > 0 then
+      pad = "|T" .. SPACER .. ":1:" .. oneDigit() .. "|t"
+    end
+    return pad .. n .. (icons and COINS[u] or SYMBOLS[u])
+  end
   if g > 0 then parts[#parts + 1] = unit(g >= 1000 and BreakUpLargeNumbers and BreakUpLargeNumbers(g) or g, "g") end
   if s > 0 then parts[#parts + 1] = unit(s, "s") end
   if c > 0 or #parts == 0 then parts[#parts + 1] = unit(c, "c") end
@@ -636,6 +667,10 @@ events:SetScript("OnEvent", function(_, event, arg1)
     if GoldwrightDB.autoShow ~= nil then -- the prototype kept this at the top level
       if GoldwrightDB.autoShow == false then GoldwrightDB.opt.autoShow = false end
       GoldwrightDB.autoShow = nil
+    end
+    if GoldwrightDB.opt.ttOthers ~= nil then -- 0.7.1 split "Other houses" into a setting per house
+      if GoldwrightDB.opt.ttOthers == false then GoldwrightDB.opt.ttBlackwater = false end
+      GoldwrightDB.opt.ttOthers = nil
     end
     GW.ApplyOptions()
   elseif event == "PLAYER_LOGIN" then

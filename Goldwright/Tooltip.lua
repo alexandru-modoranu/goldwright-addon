@@ -1,6 +1,6 @@
---- Item tooltip lines (TT-1..TT-9), added to the game's own tooltip. Default: at most 4 lines under
---- the header (TT-2 market value, TT-3 now, TT-4 signal or TT-5 trend, TT-6 other houses); holding
---- the expand key (Shift by default) adds the rest. Reads only our own stored data and the client's
+--- Item tooltip lines (TT-1..TT-9), added to the game's own tooltip. Default: "Goldwright · Min price",
+--- how it sells, a buy / sell signal when notable and one line per other house; holding the expand key
+--- (Shift by default) adds the averages, your sales, listings and the data age below. Reads only our own stored data and the client's
 --- item cache: never asks the server for anything.
 local _, GW = ...
 local L = GW.L
@@ -102,25 +102,6 @@ local function isGear(id)
   return classID == nil or classID == 2 or classID == 4
 end
 
---- The lowest and highest daily price of the last 30 days in one house.
----@param key number|string item key
----@param side string house ("A", "H", "N")
----@return number|nil lo nil without history
----@return number|nil hi
-local function lowHigh(key, side)
-  local days = GW.History(key, side)
-  if not days then return nil end
-  local lo, hi
-  for i = 1, 30 do
-    local v = days[i]
-    if v then
-      if not lo or v < lo then lo = v end
-      if not hi or v > hi then hi = v end
-    end
-  end
-  return lo, hi
-end
-
 --- Everything the tooltip needs about one item, cached per link.
 ---@class GoldwrightTooltipModel
 ---@field id number item id
@@ -128,8 +109,6 @@ end
 ---@field data table<string, GoldwrightItemSide>|nil GW.ItemData result
 ---@field anySuffix boolean|nil the numbers are for all suffixes together (base id of suffix gear)
 ---@field info { vendor: number, bindType: number? }|nil client item info
----@field lo number|nil 30-day low in the player's house
----@field hi number|nil 30-day high in the player's house
 
 --- Everything about an item that doesn't change between two hovers. Keys: suffix gear tries the
 --- exact "id:bonus..." key first (the pack sorts bonus ids the same way), then each single bonus id
@@ -169,14 +148,9 @@ local function itemModel(link, fallbackID)
     anySuffix = data ~= nil and (#bonus > 0 or suffix ~= 0) and isGear(id)
   end
   local info = cachedInfo(id)
-  local h = GW.House()
-  local lo, hi = nil, nil
-  if data then
-    lo, hi = lowHigh(key, h.side)
-  end
   -- The name as the client shows it (sales are recorded by name, from the invoices).
   local name = link and link:match("|h%[(.-)%]|h")
-  m = { id = id, key = key, data = data, anySuffix = anySuffix, info = info, lo = lo, hi = hi, name = name }
+  m = { id = id, key = key, data = data, anySuffix = anySuffix, info = info, name = name }
   -- Not in the client's item cache yet: ask again next hover rather than remembering "no vendor price".
   if info or not (C_Item and C_Item.IsItemDataCachedByID) then
     -- Every link is its own entry: keep the cache bounded.
@@ -235,21 +209,6 @@ local function notTradeable(tt, tipData, m)
   return false
 end
 
---- How many the player is looking at: the hovered stack (bag, bank and other item buttons keep
---- their count on the button), else how many are in the bags.
----@param tt table tooltip
----@param id number item id
----@return number n 0 when there is at most one
----@return string|nil label "Stack of 20" or "35 in your bags"
-local function heldCount(tt, id)
-  local owner = tt.GetOwner and tt:GetOwner()
-  local n = owner and type(owner.count) == "number" and owner.count or 0
-  if n > 1 then return n, string.format(L["Stack of %s"], count(n)) end
-  local inBags = C_Item and C_Item.GetItemCount and C_Item.GetItemCount(id) or (GetItemCount and GetItemCount(id)) or 0
-  if inBags > 1 then return inBags, string.format(L["%s in your bags"], count(inBags)) end
-  return 0
-end
-
 --- TT-9: one line when the pack is missing, unusable or old.
 ---@param h GoldwrightHouse
 ---@return string|nil text nil when the pack is fine
@@ -274,53 +233,70 @@ local function packFooter(h)
   return nil
 end
 
---- Adds a blank line and the gold "Goldwright" header, marked "(any suffix)" when it applies.
----@param tt table tooltip
+--- The first Goldwright line's label: "Goldwright" in gold, then what the price is, in grey.
 ---@param m GoldwrightTooltipModel|nil
-local function header(tt, m)
-  tt:AddLine(" ")
-  local label = m and m.anySuffix and ("Goldwright |cff9a9aa2" .. L["(any suffix)"] .. "|r") or "Goldwright"
-  tt:AddLine(label, GW.GOLD[1], GW.GOLD[2], GW.GOLD[3])
+---@param what string|nil e.g. "Min price"; nil = just the name
+---@return string label
+local function title(m, what)
+  local s = "|cffe0ac3aGoldwright|r"
+  if m and m.anySuffix then s = s .. " |cff9a9aa2" .. L["(any suffix)"] .. "|r" end
+  if what then s = s .. "|cff9a9aa2 · " .. what .. "|r" end
+  return s
 end
+
+--- Money for the right-hand column: coins after a bigger coin take two digits of room, so the
+--- coins line up down the tooltip.
+---@param copper number
+---@return string text
+local function money(copper) return GW.Money(copper, true) end
 
 ---------------------------------------------------------------------------
 -- Lines
 ---------------------------------------------------------------------------
 
---- TT-4: the cheapest real listing against normal, when outside the signal band.
+--- TT-4: the cheapest real listing against the average, when outside the signal band.
 ---@param here GoldwrightItemSide
----@param normal number|nil normal price
+---@param avg number|nil average price
 ---@return string|nil text nil inside the band
 ---@return number[]|nil color
-local function signal(here, normal)
-  if not (normal and normal > 0 and here.mv and here.min) then return nil end
-  local pct = math.floor((here.min / normal - 1) * 100 + 0.5)
+local function signal(here, avg)
+  if not (avg and avg > 0 and here.mv and here.min) then return nil end
+  local pct = math.floor((here.min / avg - 1) * 100 + 0.5)
   local band = GW.Opt("signalPct")
-  if pct <= -band then return string.format(L["%d%% below normal: good time to buy"], -pct), GW.SIGNAL_BLUE end
-  if pct >= band then return string.format(L["%d%% above normal: good time to sell"], pct), GW.SIGNAL_ORANGE end
+  if pct <= -band then return string.format(L["%d%% below avg: good time to buy"], -pct), GW.SIGNAL_BLUE end
+  if pct >= band then return string.format(L["%d%% above avg: good time to sell"], pct), GW.SIGNAL_ORANGE end
   return nil
 end
 
---- TT-5: "7-day +6% · sold ~420/day" (proven sales; gear and unproven items show the estimate,
---- "sells ~4.2/day (est.)"); the sell rate reads "n/a" until the server has enough history.
+-- Sales a day from which an item "sells fast" / "steady"; below that it "sells slowly".
+local FAST, STEADY = 100, 10
+
+--- TT-5: "Sells fast ~1,960 a day · price -5% this week". Proven sales when there are any, else the
+--- estimate marked "(est.)" (always for gear); the trend is the 7-day average against the 30-day one.
 ---@param here GoldwrightItemSide
 ---@return string|nil text nil when neither part is known
-local function trend(here)
+local function sells(here)
   local parts = {}
+  local n, proven = GW.SellRate(here)
+  if n then
+    local num = n >= 10 and GW.Number(math.floor(n + 0.5)) or GW.Decimal(n)
+    local fmt = n >= FAST and L["Sells fast ~%s a day"]
+      or n >= STEADY and L["Sells steady ~%s a day"]
+      or L["Sells slowly ~%s a day"]
+    parts[1] = string.format(fmt, num) .. (proven and "" or (" " .. L["(est.)"]))
+  end
   if here.avg7 and here.avg30 and here.avg30 > 0 then
     local t = math.floor((here.avg7 / here.avg30 - 1) * 100 + 0.5)
-    parts[1] = t == 0 and L["7-day flat"] or string.format(L["7-day %s%d%%"], t > 0 and "+" or "-", math.abs(t))
-  end
-  local rate = GW.SellRateText(here)
-  if rate then
-    parts[#parts + 1] = rate
-  elseif #parts > 0 then
-    parts[#parts + 1] = L["sells n/a"]
+    if t ~= 0 then
+      local fmt = #parts > 0 and L["price %s%d%% this week"] or L["Price %s%d%% this week"]
+      parts[#parts + 1] = string.format(fmt, t > 0 and "+" or "-", math.abs(t))
+    end
   end
   return #parts > 0 and table.concat(parts, " · ") or nil
 end
 
---- Adds the Goldwright lines for an item that can go on the auction house (TT-2..TT-9).
+--- Adds the Goldwright lines for an item that can go on the auction house (TT-2..TT-9). Money is
+--- always alone on the right, so the coins form one column; text that isn't money gets its own line.
 ---@param tt table tooltip
 ---@param m GoldwrightTooltipModel
 ---@param h GoldwrightHouse
@@ -334,124 +310,130 @@ local function tradeableLines(tt, m, h, expanded)
   if not data then -- nothing known: keep the tooltip clean unless the player wants a "no data" line
     local footer = packFooter(h)
     if O("ttNoData") or (footer and not GW.Pack()) then
-      header(tt, m)
-      if O("ttNoData") then addLine(tt, L["No auction data yet"]) end
+      addLine(tt, title(m, O("ttNoData") and L["No auction data yet"] or nil))
       if footer then addLine(tt, footer, GW.SIGNAL_ORANGE, true) end
     end
     return
   end
 
-  header(tt, m)
-  local normal = here and (here.avg7 or here.avg30)
+  -- The compact lines come first and stay as they are when the expand key is held: the expanded
+  -- view only adds lines below them (never between, never instead), so the tooltip only gets
+  -- taller. Its added single lines wrap to the width the compact lines set.
 
-  -- TT-2 market value; expanded: × the stack held
-  if listed and O("ttMarket") then
-    addPair(tt, L["Market value"], GW.Money(here.mv))
-    if expanded then
-      local n, label = heldCount(tt, m.id)
-      if n > 1 then addPair(tt, "  " .. label, GW.Money(here.mv * n), GREY) end
-    end
-  end
-
-  -- TT-3 now (cheapest real listing) with source and age; nothing listed: say so, with normal
-  if listed then
-    if O("ttNow") then
-      local src = here.source == "scan" and L["your scan"] or L["server"]
-      addPair(tt, L["Now"], GW.Money(here.min) .. "  |cff9a9aa2· " .. src .. " " .. GW.Age(here.at) .. "|r")
-      if expanded and here.baitUnits > 0 then
-        addLine(
-          tt,
-          GW.Plural(
-            here.baitUnits,
-            "%d bait listing at %s ignored",
-            "%d bait listings at %s ignored",
-            GW.Money(here.baitPrice)
-          ),
-          GW.SIGNAL_ORANGE
-        )
-      end
-    end
+  -- TT-3 min price (the cheapest real listing); nothing listed: say so, and the average stands in
+  local avg30 = here and (here.avg30 or here.avg7)
+  local avgShown -- the average the compact view already showed
+  if not O("ttNow") then
+    addLine(tt, title(m))
+  elseif listed then
+    addPair(tt, title(m, L["Min price"]), money(here.min))
   else
-    local right = L["none listed now"]
-    if normal and O("ttNormal") then right = right .. " · " .. string.format(L["normal %s"], GW.Money(normal)) end
-    addPair(tt, GW.HOUSE_NAMES[h.side], right, GREY)
+    addPair(tt, title(m, L["Min price"]), L["none listed"], GREY)
+  end
+  if not listed and avg30 and O("ttNormal") then
+    avgShown = here.avg30 and "avg30" or "avg7"
+    addPair(tt, "  " .. (here.avg30 and L["Avg price (30 days)"] or L["Avg price (7 days)"]), money(avg30))
   end
 
-  -- one line for TT-4 (when notable) or else TT-5; expanded shows both, plus normal and 30-day range
+  -- TT-7 a vendor pays more than the auction house nets after its cut (whole copper)
+  local vendor = m.info and m.info.vendor or 0
+  if listed and vendor > 0 and O("ttVendor") and math.floor(vendor - GW.Net(h.side, here.min)) >= 1 then
+    addLine(tt, L["A vendor pays more than you'd get here"], GW.SIGNAL_ORANGE)
+  end
+
+  -- TT-5 how it sells and where the price is heading; TT-4 the buy / sell signal when notable
   if here then
+    local s = O("ttTrend") and sells(here)
+    if s then addLine(tt, s) end
     local sig, sigColor
     if O("ttNormal") then
-      sig, sigColor = signal(here, normal)
-    end
-    if expanded and listed and normal and O("ttNormal") then
-      addPair(tt, here.avg7 and L["Normal (7 days)"] or L["Normal (30 days)"], GW.Money(normal))
+      sig, sigColor = signal(here, here.avg7 or here.avg30)
     end
     if sig then addLine(tt, sig, sigColor) end
-    local tr = O("ttTrend") and trend(here)
-    if tr and (expanded or not sig) then addLine(tt, tr) end
-  end
-  if expanded then
-    addPair(
-      tt,
-      L["30-day low / high"],
-      m.lo and (GW.Money(m.lo) .. " / " .. GW.Money(m.hi)) or L["building history"],
-      GREY
-    )
   end
 
-  -- TT-6 other houses; when another house really pays more (>= 20% net, real depth, proven
-  -- buyers) that evidence takes the line instead. Expanded: the full per-house table.
+  -- TT-6 the other houses the player wants, one line each so their prices line up with ours;
+  -- when Blackwater really pays more (>= 20% net, real depth, proven buyers) a line says so.
+  local function shown(side)
+    if side == h.side then return true end
+    return O(side == "N" and "ttBlackwater" or "ttOtherFaction")
+  end
+  for _, side in ipairs(SIDES) do
+    local d = data[side]
+    if side ~= h.side and shown(side) and d and d.mv then
+      addPair(tt, "  " .. GW.HOUSE_NAMES[side], money(d.min or d.mv))
+    end
+  end
   local gain = listed and h.side ~= "N" and O("ttBetter") and GW.BetterHouse(data.N, "N", here.mv)
   if gain then
     addLine(
       tt,
       string.format(L["Blackwater nets ~%d%% more after its 15%% cut (%s)"], gain, GW.SoldText(data.N.boughtPerDay)),
-      GW.SIGNAL_BLUE
+      GW.SIGNAL_BLUE,
+      true
     )
-  elseif O("ttOthers") and not expanded then
-    local others = {}
-    for _, side in ipairs(SIDES) do
-      if side ~= h.side and data[side] and data[side].mv then
-        others[#others + 1] = GW.HOUSE_NAMES[side] .. " " .. GW.Money(data[side].mv)
-      end
-    end
-    if #others > 0 then addPair(tt, L["Other houses"], table.concat(others, " · ")) end
   end
 
   if expanded then
-    -- TT-7 vendor comparison, per unit
-    local vendor = m.info and m.info.vendor or 0
-    if listed and vendor > 0 and O("ttVendor") then
-      -- How much more the vendor pays than the auction house nets after its cut (whole copper; a
-      -- difference under 1c isn't worth a line).
-      local more = math.floor(vendor - GW.Net(h.side, here.mv))
-      if more >= 1 then
-        addLine(tt, string.format(L["Vendor pays %s more than AH after its cut"], GW.Money(more)), GW.SIGNAL_ORANGE)
-      end
-      if here.min and here.min < vendor then
+    -- the 7- and 30-day averages (the one the compact view showed isn't repeated)
+    if here and O("ttNormal") then
+      if here.avg7 and avgShown ~= "avg7" then addPair(tt, "  " .. L["Avg price (7 days)"], money(here.avg7)) end
+      if here.avg30 and avgShown ~= "avg30" then addPair(tt, "  " .. L["Avg price (30 days)"], money(here.avg30)) end
+    end
+    if listed and O("ttNow") and here.baitUnits > 0 then
+      addLine(
+        tt,
+        GW.Plural(
+          here.baitUnits,
+          "%d bait listing at %s ignored",
+          "%d bait listings at %s ignored",
+          GW.Money(here.baitPrice)
+        ),
+        GW.SIGNAL_ORANGE,
+        true
+      )
+    end
+    -- TT-7 deal: listed below what a vendor pays, per unit
+    if listed and vendor > 0 and O("ttVendor") and here.min and here.min < vendor then
+      addPair(tt, "  " .. L["Deal: buy here, sell to a vendor, each"], money(vendor - here.min), GW.SIGNAL_BLUE)
+    end
+    -- your own sales of it (Ledger.lua): one line, a second only when some came back unsold
+    local name = m.name or (m.info and m.info.name)
+    local mine = O("ttSales") and GW.LedgerTooltipInfo and GW.LedgerTooltipInfo(name)
+    if mine then
+      if mine.sold == 0 then
         addLine(
           tt,
-          string.format(
-            L["Deal: buy below %s and sell to a vendor (+%s each)"],
-            GW.Money(vendor),
-            GW.Money(vendor - here.min)
-          ),
-          GW.SIGNAL_BLUE
+          "  " .. GW.Plural(mine.returns, "You listed it %d time, none sold", "You listed it %d times, none sold"),
+          GW.GOLD
         )
+      else
+        local label = "  " .. string.format(L["You sold %s, last at"], GW.Number(mine.sold))
+        tt:AddDoubleLine(label, money(mine.lastUnit), GW.GOLD[1], GW.GOLD[2], GW.GOLD[3], 1, 1, 1)
+        if mine.unsold > 0 then
+          addLine(
+            tt,
+            "  " .. GW.Plural(mine.unsold, "%d of yours came back unsold", "%d of yours came back unsold"),
+            GW.GOLD
+          )
+        end
       end
     end
-    -- your own sales of it (Ledger.lua)
-    local name = m.name or (m.info and m.info.name)
-    local mine = O("ttSales") and GW.LedgerTooltipText and GW.LedgerTooltipText(name)
-    if mine then addLine(tt, mine, GW.GOLD) end
-    -- per-house table: market value and units listed
+    -- units listed at each house, one line
+    local listedAt = {}
     for _, side in ipairs(SIDES) do
       local d = data[side]
-      if d then
-        local right = d.mv and string.format(L["%s  ·  %s listed"], GW.Money(d.mv), count(d.units))
-          or (L["none listed"] .. (d.avg7 and (" · " .. string.format(L["normal %s"], GW.Money(d.avg7))) or ""))
-        addPair(tt, "  " .. GW.HOUSE_NAMES[side] .. (side == h.side and (" " .. L["(here)"]) or ""), right, GREY)
+      if d and shown(side) then
+        listedAt[#listedAt + 1] = GW.HOUSE_NAMES[side] .. " " .. (d.mv and count(d.units) or L["none"])
       end
+    end
+    if #listedAt > 0 then
+      addLine(tt, "  " .. string.format(L["Listed: %s"], table.concat(listedAt, " · ")), nil, true)
+    end
+    -- where the prices come from, and how old they are
+    if here and here.at and here.at > 0 then
+      local fmt = here.source == "scan" and L["From your scan %s"] or L["From Goldwright Data %s"]
+      addLine(tt, "  " .. string.format(fmt, GW.Age(here.at)))
     end
   end
 

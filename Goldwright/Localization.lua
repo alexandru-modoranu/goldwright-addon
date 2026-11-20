@@ -1,7 +1,7 @@
 --- Translations. Every text Goldwright shows a player goes through GW.L, keyed by its English text:
 ---
 ---   local L = GW.L
----   label:SetText(L["Market value"])
+---   label:SetText(L["Min price"])
 ---   GW.Print(L["Posted %d of %s."], n, name)       -- format strings keep their placeholders
 ---   L["%d sale|%d sales"]                           -- not like this: plurals go through GW.Plural
 ---   GW.Plural(n, "%d sale", "%d sales")             -- the right form for the client's language

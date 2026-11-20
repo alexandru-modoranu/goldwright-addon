@@ -1,12 +1,11 @@
 # Goldwright changelog
 
-## 0.7.0
+## 0.7.1
 
-A cleaner Shopping tab you can open anywhere, and a price watch for your shopping lists.
+A clearer tooltip: two price names instead of five, money lined up in one column, and Shift only adds lines below.
 
-- **Shopping anywhere:** `/gw lists` (or Open Goldwright in the minimap menu) now opens your shopping lists away from the auction house too. Change lists, max prices and the watch wherever you are; Sell, My Auctions, Scan, Run List and Buy are greyed out until you're at the auction house (hover them to see why).
-- **Shopping tab in two pages:** the tab now opens on your lists: what's on each, what's below your max price and when it was last checked. Click a list to open it full width; "Shopping" at the top (or Esc, or B on a controller) takes you back. Move, rename, duplicate and delete appear on the list under the mouse, and the page scrolls, so any number of lists fits.
-- **Price watch:** click the spyglass next to a list (or tick "Watch prices" on it) and Goldwright tells you when an item on it is below your max price: when you log in and after a full scan. A small Price watch window lists them by shopping list, each price next to your max, with "Open list" to go straight to it; it waits until combat ends, and closes with Esc. It only shows what it hasn't shown you yet (a new dip, or a list you just started watching), so the same item doesn't repeat at every login. "Check watched lists" checks again any time: at the auction house it searches the watched lists now; elsewhere it uses your newest data (also `/gw watch`). Nothing is bought for you.
-- **Crafting panel setting:** "Open the Crafting panel with your professions" in Settings (on by default). Turn it off and the panel waits for `/gw craft`.
-- **Smaller fixes:** messages about missing price data now name the add-on to install as it's called today, "Goldwright Data" (CurseForge or Wago), not "Goldwright Data: US". The Scan tab lists your last 10 scans instead of 3. The `/gw bug` window says what the report contains: your realm and recent auction activity, never character names.
-- **Today's prices before you search:** a list shows each item's cheapest price from your newest data until you run it.
+- **Tooltip:** the first line is **Goldwright · Min price**, the cheapest real listing (bait skipped), with no blank line or separate header above it. Then how it sells in plain words ("Sells fast ~1,960 a day · price -5% this week"), a buy or sell hint when the min price is far from the average, and each other auction house on its own line. Every amount of money sits alone on the right, and a one-digit coin after a bigger one takes two digits of room, so the coins line up and you can compare prices straight down.
+- **Holding Shift** adds lines below and never moves the ones already there: **Avg price (7 days)** and **(30 days)**, bait listings that were skipped, a vendor deal, your own sales in one line ("You sold 28, last at 99c", plus "9 of yours came back unsold" only when some did), how many are listed at each house, and where the prices come from ("From your scan 25 min ago").
+- **Gone from the tooltip:** Market value, the normal price, the 30-day lowest and highest day, and the stack value. Market value still sets prices on the Sell tab, in shopping lists and in the signals.
+- **Vendor:** when a vendor pays more than the auction house would net you, an orange line says so without holding Shift.
+- **Tooltip settings:** "Other houses" is now two settings: **Blackwater prices** (on) and the other faction's prices (**Horde prices** for Alliance, **Alliance prices** for Horde), off by default because you can't mail items to the other faction. If you had turned "Other houses" off, Blackwater stays off. The "Market value" setting is gone with its line; "Now" is now **Min price**, "Normal price" is now **Average prices**, and "Trend and sell rate" is now **Sell rate and price trend**.

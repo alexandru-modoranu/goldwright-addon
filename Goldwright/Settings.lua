@@ -217,19 +217,27 @@ local function build()
   Y = Y - 24
 
   heading(L["Tooltip"])
-  check(L["Market value"], "ttMarket", L["Depth-based market value at your auction house."])
-  check(L["Now (cheapest real listing)"], "ttNow", L["The cheapest listing after skipping likely bait."])
   check(
-    L["Normal price and buy / sell signal"],
+    L["Min price (cheapest real listing)"],
+    "ttNow",
+    L["The cheapest listing right now, after skipping likely bait."]
+  )
+  check(
+    L["Average prices and buy / sell signal"],
     "ttNormal",
-    L["The 7-day normal price, and a line when the cheapest listing is well above or below it."]
+    L["The 7- and 30-day average price (hold Shift), and a line when the min price is well above or below it."]
   )
   check(
-    L["Trend and sell rate"],
+    L["Sell rate and price trend"],
     "ttTrend",
-    L["7-day trend against 30 days, and units sold per day (proven sales, else an estimate)."]
+    L["How fast it sells (proven sales, else an estimate) and how the average price moved this week."]
   )
-  check(L["Other houses"], "ttOthers")
+  check(
+    GW.House().side == "H" and L["Alliance prices"] or L["Horde prices"],
+    "ttOtherFaction",
+    L["The other faction's auction house. Off by default: you can't mail items to the other faction."]
+  )
+  check(L["Blackwater prices"], "ttBlackwater", L["The neutral auction house, open to both factions."])
   check(L["Blackwater pays more"], "ttBetter", L["Only shown with real depth and proven buyers at the other house."])
   check(L["Vendor comparison"], "ttVendor")
   check(
@@ -246,7 +254,7 @@ local function build()
   choice(L["Money"], "money", { { "coins", L["Coin Icons"] }, { "letters", L["1g 23s 47c"] } })
 
   heading(L["Signals"])
-  number(L["Tooltip signal outside"], "signalPct", 1, 90, L["% of normal"], string.format(L["default %d"], 15))
+  number(L["Tooltip signal outside"], "signalPct", 1, 90, L["% of average"], string.format(L["default %d"], 15))
   number(L["Better-house hint from"], "betterPct", 1, 500, L["% more, after cuts"], string.format(L["default %d"], 20))
 
   heading(L["Selling"])
