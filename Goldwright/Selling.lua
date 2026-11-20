@@ -147,17 +147,18 @@ end
 --- holds your units can hold other sellers' units at the same price (qty - ownQty).
 ---@param myUnit number your unit price in copper
 ---@param listings table[]|nil `{ price, qty, own, ownQty }` rows as the search returns them
+---@param recent number|nil the item's recent price for the bait cliff rule (GW.RecentPrice)
 ---@return string status "lowest" or "undercut"
 ---@return number|nil now the cheapest other real price
 ---@return number|nil bait price of bait listings under yours that were ignored
-function GW.AuctionStatus(myUnit, listings)
+function GW.AuctionStatus(myUnit, listings, recent)
   local others = {}
   for _, x in ipairs(listings or {}) do
     local q = x.qty or 0
     if x.own then q = q - (x.ownQty or q) end
     if q > 0 and x.price and x.price > 0 then others[#others + 1] = { price = x.price, qty = q } end
   end
-  local s = #others > 0 and GW.MarketStats(others)
+  local s = #others > 0 and GW.MarketStats(others, recent)
   if not s then return "lowest", nil, nil end
   local now = s.sorted[s.firstRealIndex].price
   if now < myUnit then return "undercut", now, nil end

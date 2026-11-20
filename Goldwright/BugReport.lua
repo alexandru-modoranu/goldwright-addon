@@ -15,6 +15,7 @@ local UI = GW.UI
 GW.BUG_REPORT_MAX = 1900
 --- Newest errors in the report (each up to 300 characters, so the log still gets room).
 local ERRORS_IN_REPORT = 3
+local BAIT_IN_REPORT = 3 -- newest bait notes in the report
 --- Where to paste it.
 GW.BUG_REPORT_WHERE = string.format(
   L["#bug-reports on the Goldwright Discord (%s), or %s"],
@@ -131,6 +132,9 @@ function GW.BugReport()
     table.insert(errLines, 1, errors[i]:sub(1, 300))
   end
   head = head .. "Recent errors:" .. (#errLines > 0 and ("\n" .. table.concat(errLines, "\n")) or " none") .. "\n"
+  -- The newest bait notes (Diagnostics.lua): the listings the bait rule judged, for tuning it.
+  local bait = GW.BaitNoteLines and GW.BaitNoteLines(BAIT_IN_REPORT) or {}
+  if #bait > 0 then head = head .. "Bait checks:\n" .. table.concat(bait, "\n") .. "\n" end
   -- Recent log lines, newest last, as many as fit.
   local log = GoldwrightDB and GoldwrightDB.searchLog or {}
   local lines = {}

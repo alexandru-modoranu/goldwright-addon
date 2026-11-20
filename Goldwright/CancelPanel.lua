@@ -162,7 +162,8 @@ local function computeStatuses()
     elseif res and res.unknown then
       r.status = "unknown"
     elseif res then
-      r.status, r.now, r.bait = GW.AuctionStatus(r.unit, res.listings)
+      local side = GW.AuctionSide and GW.AuctionSide() or GW.House().side
+      r.status, r.now, r.bait = GW.AuctionStatus(r.unit, res.listings, GW.RecentPrice(r.itemID, side))
     elseif cv.current and cv.current.keyStr == r.keyStr then
       r.status = "checking"
     else

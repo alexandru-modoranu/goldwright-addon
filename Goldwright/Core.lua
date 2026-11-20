@@ -477,11 +477,16 @@ function GW.ItemData(key)
   -- The player's own full scans (Scan.lua) replace the current-listing numbers of that house when
   -- they are newer than the pack: a full scan sees every listing, so an item missing from it is
   -- not listed now. History, trend and sales stay from the pack.
+  -- A scan stores items by plain item id: it can't tell random suffixes apart. So a suffix key
+  -- ("id:bonus") the scan has no entry for reads as not listed only when the base item isn't in
+  -- the scan either; while the base item is listed, the pack's numbers for that suffix stay.
+  local baseID = type(key) == "string" and tonumber(key:match("^(%d+):"))
   for side, sc in pairs(GW.HouseScans and GW.HouseScans() or {}) do
     if not (pack and pack.snapshotAt and pack.snapshotAt >= sc.at) then
       local s = sc.items[key]
       local d = out[side]
-      if s or d then
+      local unseen = not s and baseID and sc.items[baseID] ~= nil
+      if (s or d) and not unseen then
         d = d or {}
         local mv, min, units, baitPrice, baitUnits = strsplit(",", s or "")
         d.mv, d.min, d.units = n36(mv), n36(min), n36(units) or 0
@@ -510,6 +515,24 @@ function GW.History(key, side)
     out[i] = n36(x)
   end
   return out, GW.pack.histFrom
+end
+
+--- The recent price the bait cliff rule measures against (GW.MarketStats): the lower of the item's
+--- 7-day average and yesterday's typical price at that house, from Goldwright Data, so a falling
+--- market is recognised within a day. Mirrors recentPrice in server/src/rollup/publish.mjs.
+---@param key number|string item key
+---@param side string house ("A", "H", "N")
+---@return number|nil copper, nil when neither is known
+function GW.RecentPrice(key, side)
+  local d = key and GW.ItemData and GW.ItemData(key)
+  local best = d and d[side] and d[side].avg7
+  local hist, from = GW.History(key, side)
+  if hist and from then
+    local y = math.floor((GetServerTime() - from) / 86400) -- yesterday's index (day 1 starts at histFrom)
+    local v = y >= 1 and hist[y]
+    if v and v > 0 and (not best or v < best) then best = v end
+  end
+  return best
 end
 
 --- The hour-of-day profile of an item in one house.

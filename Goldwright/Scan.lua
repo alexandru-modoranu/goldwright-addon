@@ -202,7 +202,7 @@ priceStep = guarded(function()
     for price, qty in pairs(r.agg[id]) do
       list[#list + 1] = { price = price, qty = qty }
     end
-    local s = GW.MarketStats(list)
+    local s = GW.MarketStats(list, GW.RecentPrice(id, r.side))
     if s then
       -- stored as "mv,minReal,units,baitPrice,baitUnits" in base 36, trailing empty fields dropped
       r.out[id] = (

@@ -722,7 +722,9 @@ local function readResults(itemKeyFromEvent, eventName)
   if eventName and not eventName:find("^timeout") then state.answered = true end
   if #list == 0 and state.searching then return end
   state.searching = false
-  state.stats = GW.MarketStats(list)
+  local recent = GW.RecentPrice(g.itemID, sellSide())
+  state.stats = GW.MarketStats(list, recent)
+  GW.NoteBaitSearch(g.itemID, g.name, sellSide(), state.stats, recent)
   panel.listStatus:SetText(state.stats and L["searched just now"] or L["no other listings"])
   renderMarket()
   applyDefaultStrategy()
@@ -1052,6 +1054,7 @@ local function postSelected()
     C_AuctionHouse.PostItem(loc, state.duration, 1, nil, unit)
   end
   GW.Log("post sent: %d x %s at %d, duration %d", qty, g.name, unit, state.duration)
+  GW.NoteBaitPost(g.itemID, sellSide(), unit)
   toast(L["Posting…"], GREY)
   recalc()
   C_Timer.After(POST_TIMEOUT, function()

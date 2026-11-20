@@ -243,3 +243,128 @@ if seterrorhandler and geterrorhandler then
     if previous then return previous(msg, ...) end
   end)
 end
+
+---------------------------------------------------------------------------
+-- Bait notes (2026-11-20): evidence for tuning the bait rule (Pricing.lua). A note is written on a
+-- Sell tab search when (A) the rule skipped listings or (B) the cheapest listing is under half the
+-- recent price and the rule kept it. Later the note gets two facts: whether listings at that cheap
+-- price were still there at the next search of the item, and what the player posted at. Kept in
+-- GoldwrightDB.baitNotes (last BAIT_NOTES_MAX) and shown in the bug report; never sent anywhere.
+---------------------------------------------------------------------------
+GW.BAIT_NOTES_MAX = 20
+local NOTE_SAME_MIN = 600 -- the same item and cheapest price within 10 min is one case, not a new note
+local FOLLOW_UP_MAX = 86400 -- a note older than a day gets no follow-up
+
+--- Copper as plain letters for the notes ("1g 2s 3c"), whatever the money setting.
+---@param c number|nil copper
+---@return string
+local function plainMoney(c)
+  if not c then return "?" end
+  c = math.floor(c + 0.5)
+  local g, s, k = math.floor(c / 10000), math.floor(c / 100) % 100, c % 100
+  local parts = {}
+  if g > 0 then parts[#parts + 1] = g .. "g" end
+  if s > 0 then parts[#parts + 1] = s .. "s" end
+  if k > 0 or #parts == 0 then parts[#parts + 1] = k .. "c" end
+  return table.concat(parts, " ")
+end
+
+local function notes()
+  GoldwrightDB = GoldwrightDB or {}
+  GoldwrightDB.baitNotes = GoldwrightDB.baitNotes or {}
+  return GoldwrightDB.baitNotes
+end
+
+--- The newest note for an item at a house, or nil.
+local function latest(id, side)
+  local list = notes()
+  for i = #list, 1, -1 do
+    local n = list[i]
+    if n.id == id and n.side == side then return n end
+  end
+  return nil
+end
+
+--- Records a Sell tab search for the bait notes: fills in the "still there?" fact of the item's last
+--- note, then writes a new note when the rule skipped listings or kept a very cheap one.
+---@param id number item id
+---@param name string|nil item name
+---@param side string house ("A", "H", "N")
+---@param stats GoldwrightMarketStats|nil GW.MarketStats of the search
+---@param recent number|nil the recent price the rule used (GW.RecentPrice)
+function GW.NoteBaitSearch(id, name, side, stats, recent)
+  if not (id and side and stats and stats.sorted and stats.sorted[1]) then return end
+  local now = GetServerTime()
+  local first = stats.sorted[1].price
+  local prev = latest(id, side)
+  -- Every later search within a day updates it, so the note keeps the latest look ("4 left after
+  -- 2 min" becomes "0 left after 60 min").
+  if prev and now - prev.t >= 60 and now - prev.t <= FOLLOW_UP_MAX then
+    local units = 0
+    for _, x in ipairs(stats.sorted) do
+      if x.price <= prev.first then units = units + x.qty end
+    end
+    prev.still = units -- units at or under the noted cheapest price at this later search (0 = gone)
+    prev.stillAfter = math.floor((now - prev.t) / 60)
+  end
+  if not (recent and recent > 0) then return end
+  local skipped = stats.baitUnits > 0
+  if not skipped and first >= recent * 0.5 then return end
+  if prev and prev.first == first and now - prev.t < NOTE_SAME_MIN then return end
+  local ladder = {}
+  for i = 1, math.min(10, #stats.sorted) do
+    local x = stats.sorted[i]
+    ladder[#ladder + 1] = plainMoney(x.price) .. (x.qty > 1 and ("x" .. x.qty) or "")
+  end
+  local list = notes()
+  list[#list + 1] = {
+    t = now,
+    id = id,
+    name = name,
+    side = side,
+    kind = skipped and "skipped" or "kept",
+    recent = recent,
+    first = first,
+    minReal = stats.minReal,
+    baitUnits = stats.baitUnits,
+    cliffUnits = stats.cliffUnits,
+    ladder = table.concat(ladder, " "),
+  }
+  while #list > GW.BAIT_NOTES_MAX do
+    table.remove(list, 1)
+  end
+end
+
+--- Records what the player posted an item at, on the item's last note (within a day).
+---@param id number item id
+---@param side string house
+---@param unit number posted price per unit, copper
+function GW.NoteBaitPost(id, side, unit)
+  local n = id and latest(id, side)
+  if n and n.posted == nil and GetServerTime() - n.t <= FOLLOW_UP_MAX then n.posted = unit end
+end
+
+--- The newest bait notes as bug report lines, newest last.
+---@param max number how many
+---@return string[]
+function GW.BaitNoteLines(max)
+  local list, out = notes(), {}
+  for i = math.max(1, #list - max + 1), #list do
+    local n = list[i]
+    local line = string.format(
+      "%s %s (%s) %s %s, recent %s: %s -> min %s%s%s",
+      date("%m-%d %H:%M", n.t),
+      n.name or ("item " .. tostring(n.id)),
+      tostring(n.id),
+      n.side,
+      n.kind,
+      plainMoney(n.recent),
+      n.ladder,
+      plainMoney(n.minReal),
+      n.still and string.format(" · %d left after %d min", n.still, n.stillAfter or 0) or "",
+      n.posted and (" · posted " .. plainMoney(n.posted)) or ""
+    )
+    out[#out + 1] = line:sub(1, 240)
+  end
+  return out
+end

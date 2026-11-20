@@ -1,11 +1,9 @@
 # Goldwright changelog
 
-## 0.7.1
+## 0.7.2
 
-A clearer tooltip: two price names instead of five, money lined up in one column, and Shift only adds lines below.
+Better at spotting bait, so the Sell tab doesn't suggest dumping your item, and random-suffix gear keeps its price after a scan.
 
-- **Tooltip:** the first line is **Goldwright · Min price**, the cheapest real listing (bait skipped), with no blank line or separate header above it. Then how it sells in plain words ("Sells fast ~1,960 a day · price -5% this week"), a buy or sell hint when the min price is far from the average, and each other auction house on its own line. Every amount of money sits alone on the right, and a one-digit coin after a bigger one takes two digits of room, so the coins line up and you can compare prices straight down.
-- **Holding Shift** adds lines below and never moves the ones already there: **Avg price (7 days)** and **(30 days)**, bait listings that were skipped, a vendor deal, your own sales in one line ("You sold 28, last at 99c", plus "9 of yours came back unsold" only when some did), how many are listed at each house, and where the prices come from ("From your scan 25 min ago").
-- **Gone from the tooltip:** Market value, the normal price, the 30-day lowest and highest day, and the stack value. Market value still sets prices on the Sell tab, in shopping lists and in the signals.
-- **Vendor:** when a vendor pays more than the auction house would net you, an orange line says so without holding Shift.
-- **Tooltip settings:** "Other houses" is now two settings: **Blackwater prices** (on) and the other faction's prices (**Horde prices** for Alliance, **Alliance prices** for Horde), off by default because you can't mail items to the other faction. If you had turned "Other houses" off, Blackwater stays off. The "Market value" setting is gone with its line; "Now" is now **Min price**, "Normal price" is now **Average prices**, and "Trend and sell rate" is now **Sell rate and price trend**.
+- **Bait:** a handful of very cheap listings followed by a big jump up to the real market (for example 6 Mageweave Bags at 6s when they sell for 60s) are now ignored, as long as they're far under the item's recent price and only a small part of the market. Before, only up to three cheap items were caught. A real price drop, where prices step down gradually, still counts. The tooltip, the Sell tab and the Auctions tab use the same rule, and so does the website. ([#2](https://github.com/goldwrightapp/goldwright-addon/issues/2))
+- **Bug reports:** `/gw bug` now includes the last few bait checks (the cheap listings it saw and what it decided), so a wrong price can be traced.
+- **Gear with a random suffix after a full scan:** items like "Spiked Chain Leggings of Intellect" no longer show as not listed in the tooltip after you scan that auction house. A scan sees the base item but can't tell suffixes apart, so the suffix keeps its price from Goldwright Data while the item is listed, and only shows as not listed when the scan found none of that item at all. Thanks to azohra for the report. ([#1](https://github.com/goldwrightapp/goldwright-addon/issues/1))
